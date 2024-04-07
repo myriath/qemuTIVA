@@ -27,24 +27,10 @@
 #include "qapi/qmp/qlist.h"
 #include "ui/input.h"
 
-/* Analogue to Digital Converter.  This is only partially implemented,
-   enough for applications that use a combined ADC and timer tick.  */
-
-#define TM4_ADC_EM_CONTROLLER 0
-#define TM4_ADC_EM_COMP       1
-#define TM4_ADC_EM_EXTERNAL   4
-#define TM4_ADC_EM_TIMER      5
-#define TM4_ADC_EM_PWM0       6
-#define TM4_ADC_EM_PWM1       7
-#define TM4_ADC_EM_PWM2       8
-
-#define TM4_ADC_FIFO_EMPTY    0x0100
-#define TM4_ADC_FIFO_FULL     0x1000
-
-#define TYPE_TM4_ADC "tm4-adc"
 typedef struct TM4ADCState TM4ADCState;
 DECLARE_INSTANCE_CHECKER(TM4ADCState, TM4_ADC, TYPE_TM4_ADC)
 
+// Define device registers
 struct TM4ADCState {
     SysBusDevice parent_obj;
 
@@ -68,89 +54,123 @@ struct TM4ADCState {
     } fifo[4];
     uint32_t ssmux[4];
     uint32_t ssctl[4];
-    uint32_t ssop[4];   // TODO Here and below
-    uint32_t ssdc[4];   //
-    uint32_t dcric;     //
-    uint32_t dcctl[8];  //
-    uint32_t dccmp[8];  //
-    uint32_t pc;        //
-    uint32_t cc;        // End TODO
-    uint32_t noise;
-    qemu_irq irq[4];
+    uint32_t ssop[4];
+    uint32_t ssdc[4];
+    uint32_t dcric;
+    uint32_t dcctl[8];
+    uint32_t dccmp[8];
+    uint32_t pc;
+    uint32_t cc;
+
+    qemu_irq nvic_irq[4];
+    // Each ain value is the voltage of the AIN in milli-volts
+    uint32_t ain[12];
 };
 
-static uint32_t tm4c123gh6pm_adc_fifo_read(TM4ADCState *s, int fifo)
+// Read a value from the SSFIFO, also updates underflow / tail / head pointers
+static uint32_t adc_fifo_read(TM4ADCState *s, int ss)
 {
     int tail;
 
-    tail = s->fifo[fifo].state & 0xf;
-    if (s->fifo[fifo].state & TM4_ADC_FIFO_EMPTY) {
-        s->ustat |= 1 << fifo;
+    tail = s->fifo[ss].state & 0xf;
+    if (s->fifo[ss].state & TM4_ADC_FIFO_EMPTY) {
+        s->ustat |= 1 << ss;
     } else {
-        s->fifo[fifo].state = (s->fifo[fifo].state & ~0xf) | ((tail + 1) & 0xf);
-        s->fifo[fifo].state &= ~TM4_ADC_FIFO_FULL;
-        if (tail + 1 == ((s->fifo[fifo].state >> 4) & 0xf))
-            s->fifo[fifo].state |= TM4_ADC_FIFO_EMPTY;
+        s->fifo[ss].state = (s->fifo[ss].state & ~0xf) | ((tail + 1) & 0xf);
+        s->fifo[ss].state &= ~TM4_ADC_FIFO_FULL;
+        if (tail + 1 == ((s->fifo[ss].state >> 4) & 0xf))
+            s->fifo[ss].state |= TM4_ADC_FIFO_EMPTY;
     }
-    return s->fifo[fifo].data[tail];
+    return s->fifo[ss].data[tail];
 }
 
-static void tm4c123gh6pm_adc_fifo_write(TM4ADCState *s, int fifo,
-                                     uint32_t value)
+// Write a value to the SSFIFO, also updates overflow / tail / head pointers
+static void adc_fifo_write(TM4ADCState *s, int ss, uint32_t value)
 {
     int head;
 
     /* TODO: Real hardware has limited size FIFOs.  We have a full 16 entry 
        FIFO fir each sequencer.  */
-    head = (s->fifo[fifo].state >> 4) & 0xf;
-    if (s->fifo[fifo].state & TM4_ADC_FIFO_FULL) {
-        s->ostat |= 1 << fifo;
+    head = (s->fifo[ss].state >> 4) & 0xf;
+    if (s->fifo[ss].state & TM4_ADC_FIFO_FULL) {
+        s->ostat |= 1 << ss;
         return;
     }
-    s->fifo[fifo].data[head] = value;
+    s->fifo[ss].data[head] = value;
     head = (head + 1) & 0xf;
-    s->fifo[fifo].state &= ~TM4_ADC_FIFO_EMPTY;
-    s->fifo[fifo].state = (s->fifo[fifo].state & ~0xf0) | (head << 4);
-    if ((s->fifo[fifo].state & 0xf) == head)
-        s->fifo[fifo].state |= TM4_ADC_FIFO_FULL;
+    s->fifo[ss].state &= ~TM4_ADC_FIFO_EMPTY;
+    s->fifo[ss].state = (s->fifo[ss].state & ~0xf0) | (head << 4);
+    if ((s->fifo[ss].state & 0xf) == head)
+        s->fifo[ss].state |= TM4_ADC_FIFO_FULL;
 }
 
-static void tm4c123gh6pm_adc_update(TM4ADCState *s)
+// Update interrupts based on ris and im
+static void adc_update_nvic(TM4ADCState *s)
 {
     int level;
     int n;
 
     for (n = 0; n < 4; n++) {
         level = (s->ris & s->im & (1 << n)) != 0;
-        qemu_set_irq(s->irq[n], level);
+        qemu_set_irq(s->nvic_irq[n], level);
     }
 }
 
-static void tm4c123gh6pm_adc_trigger(void *opaque, int irq, int level)
+// AIN triggers store the 'level' value as the AIN input voltage in milli-volts.
+static void adc_ain_trigger(void *opaque, int irq, int level) 
 {
     TM4ADCState *s = opaque;
-    int n;
-
-    for (n = 0; n < 4; n++) {
-        if ((s->actss & (1 << n)) == 0) {
-            continue;
-        }
-
-        if (((s->emux >> (n * 4)) & 0xff) != 5) {
-            continue;
-        }
-
-        /* Some applications use the ADC as a random number source, so introduce
-           some variation into the signal.  */
-        s->noise = s->noise * 314159 + 1;
-        /* TODO actual inputs not implemented.  Return an arbitrary value.  */
-        tm4c123gh6pm_adc_fifo_write(s, n, 0x200 + ((s->noise >> 16) & 7));
-        s->ris |= (1 << n);
-        tm4c123gh6pm_adc_update(s);
-    }
+    s->ain[irq] = level;
 }
 
-static void tm4c123gh6pm_adc_reset_hold(Object *obj)
+// TODO: Any other triggers we desire (other events from SSEMUX)
+
+// Runs when the PSSI value is updated. Handles the PSSI trigger
+static void adc_pssi_trigger(TM4ADCState *s)
+{
+    // Check the sync status
+    if (s->pssi & 0x08000000 && ~s->pssi & 0x80000000) {
+        return;
+    }
+    s->actss |= 0x00010000; // Set busy bit
+    s->pssi &= ~0x80000000; // Clear GSYNC bit
+
+    int sample_counts[4] = {8, 4, 4, 1}; // ss0 has 8 samples, ss1 has 4, etc
+    int i, j, bit_i, nibble_j, ain_num;
+    // For each sample sequence
+    for (i = 0; i < 4; i++) {
+        bit_i = 1 << i;
+        // Check that the trigger for the sequence is set to 0 (default)
+        if (((s->emux >> (i * 4)) & 0xff) != 0) {
+            continue;
+        }
+        // Check sample sequence 'i' is triggered and the sequence is enabled
+        if ((~s->pssi & ~s->actss & bit_i) {
+            continue;
+        }
+        // Read each sample of the ss
+        for (j = 0; j < sample_counts[i]; j++) {
+            nibble_j = j << 2;
+            ain_num = s->ssmux[i] & (0xf << nibble_j);
+            // Calculate the ADC value based on the input irq 'level' being the voltage in mV
+            adc_fifo_write(s, i, (uint32_t)(s->ain[ain_num] / ((double)3300.0) * 4095) & 0xfff);
+            
+            // Set interrupts if they are enabled
+            if (s->ssctl[i] & (4 << nibble_j)) {
+                s->ris |= bit_i;
+            }
+            // Check if this is the last sample
+            if (s->ssctl[i] & (2 << nibble_j)) {
+                break;
+            }
+        }
+    }
+    // Update the nvic with new interrupts
+    adc_update_nvic(s);
+}
+
+// Resets the ADC
+static void adc_reset_hold(Object *obj)
 {
     TM4ADCState *s = TM4_ADC(obj);
     int n;
@@ -173,12 +193,12 @@ static void tm4c123gh6pm_adc_reset_hold(Object *obj)
     s->cc = 0;
 }
 
-static uint64_t tm4c123gh6pm_adc_read(void *opaque, hwaddr offset,
+// Reads an offset from the ADC's iomem
+static uint64_t adc_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
     TM4ADCState *s = opaque;
 
-    /* TODO: Implement this.  */
     if (offset >= 0x40 && offset < 0xc0) {
         int n;
         n = (offset - 0x40) >> 5;
@@ -188,7 +208,7 @@ static uint64_t tm4c123gh6pm_adc_read(void *opaque, hwaddr offset,
         case 0x04: /* SSCTL */
             return s->ssctl[n];
         case 0x08: /* SSFIFO */
-            return tm4c123gh6pm_adc_fifo_read(s, n);
+            return adc_fifo_read(s, n);
         case 0x0c: /* SSFSTAT */
             return s->fifo[n].state;
         case 0x10: /* SSOP */
@@ -247,13 +267,12 @@ static uint64_t tm4c123gh6pm_adc_read(void *opaque, hwaddr offset,
     }
 }
 
-// TODO
-static void tm4c123gh6pm_adc_write(void *opaque, hwaddr offset,
+// Writes an offset to the ADC's iomem
+static void adc_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     TM4ADCState *s = opaque;
 
-    /* TODO: Implement this.  */
     if (offset >= 0x40 && offset < 0xc0) {
         int n;
         n = (offset - 0x40) >> 5;
@@ -261,12 +280,7 @@ static void tm4c123gh6pm_adc_write(void *opaque, hwaddr offset,
         case 0x00: /* SSMUX */
             s->ssmux[n] = value;
             return;
-        case 0x04: /* SSCTL */ // TODO
-            if (value != 6) {
-                qemu_log_mask(LOG_UNIMP,
-                              "ADC: Unimplemented sequence %" PRIx64 "\n",
-                              value);
-            }
+        case 0x04: /* SSCTL */
             s->ssctl[n] = value;
             return;
         case 0x10: /* SSOP */
@@ -319,8 +333,9 @@ static void tm4c123gh6pm_adc_write(void *opaque, hwaddr offset,
     case 0x24:
         s->spc = value;
         break;
-    case 0x28: /* PSSI */ // TODO
-        qemu_log_mask(LOG_UNIMP, "ADC: sample initiate unimplemented\n");
+    case 0x28: /* PSSI */
+        s->pssi = value;
+        adc_pssi_trigger(s);
         break;
     case 0x30: /* SAC */
         s->sac = value;
@@ -349,16 +364,18 @@ static void tm4c123gh6pm_adc_write(void *opaque, hwaddr offset,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "ADC: write at bad offset 0x%x\n", (int)offset);
     }
-    tm4c123gh6pm_adc_update(s);
+    adc_update(s);
 }
 
-static const MemoryRegionOps tm4c123gh6pm_adc_ops = {
-    .read = tm4c123gh6pm_adc_read,
-    .write = tm4c123gh6pm_adc_write,
+// ADC iomem read / write operations
+static const MemoryRegionOps adc_ops = {
+    .read = adc_read,
+    .write = adc_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static const VMStateDescription vmstate_tm4c123gh6pm_adc = {
+// VMState for the ADC
+static const VMStateDescription vmstate_adc = {
     .name = "tm4c123gh6pm_adc",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -422,44 +439,53 @@ static const VMStateDescription vmstate_tm4c123gh6pm_adc = {
     }
 };
 
-static void tm4c123gh6pm_adc_init(Object *obj)
+// Initialize a new ADC device
+static void adc_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
     TM4ADCState *s = TM4_ADC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     int n;
 
+    // Outputs for nvic
     for (n = 0; n < 4; n++) {
-        sysbus_init_irq(sbd, &s->irq[n]);
+        sysbus_init_irq(sbd, &s->nvic_irq[n]);
     }
 
-    memory_region_init_io(&s->iomem, obj, &tm4c123gh6pm_adc_ops, s,
+    // Inputs 0-11 are for AIN 0-11
+    for (n = 0; n < 12; n++) {
+        qdev_init_gpio_in(dev, adc_ain_trigger, n);
+    }
+
+    // Initialize iomem
+    memory_region_init_io(&s->iomem, obj, &adc_ops, s,
                           "adc", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
-    qdev_init_gpio_in(dev, tm4c123gh6pm_adc_trigger, 1);
 }
 
-
-static void tm4c123gh6pm_adc_class_init(ObjectClass *klass, void *data)
+// Initialize ADC class for QEMU
+static void adc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
-    rc->phases.hold = tm4c123gh6pm_adc_reset_hold;
-    dc->vmsd = &vmstate_tm4c123gh6pm_adc;
+    rc->phases.hold = adc_reset_hold;
+    dc->vmsd = &vmstate_adc;
 }
 
-static const TypeInfo tm4c123gh6pm_adc_info = {
+// ADC device info
+static const TypeInfo adc_info = {
     .name          = TYPE_TM4_ADC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(TM4ADCState),
-    .instance_init = tm4c123gh6pm_adc_init,
-    .class_init    = tm4c123gh6pm_adc_class_init,
+    .instance_init = adc_init,
+    .class_init    = adc_class_init,
 };
 
 // attribute used to prevent compiler warnings, static function
 // used in tm4c123gh6pm.c, not here
+// Register the ADC info as a new QEMU type
 __attribute__((used)) static void adc_register_types(void)
 {
-    type_register_static(&tm4c123gh6pm_adc_info);
+    type_register_static(&adc_info);
 }
