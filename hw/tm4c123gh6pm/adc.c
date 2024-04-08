@@ -1,74 +1,7 @@
 #include "adc.h"
 
-#include "qemu/osdep.h"
-#include "qapi/error.h"
-#include "hw/core/split-irq.h"
-#include "hw/sysbus.h"
-#include "hw/sd/sd.h"
-#include "hw/ssi/ssi.h"
-#include "hw/arm/boot.h"
-#include "qemu/timer.h"
-#include "hw/i2c/i2c.h"
-#include "net/net.h"
-#include "hw/boards.h"
-#include "qemu/log.h"
-#include "exec/address-spaces.h"
-#include "sysemu/sysemu.h"
-#include "hw/arm/armv7m.h"
-#include "hw/char/pl011.h"
-#include "hw/input/stellaris_gamepad.h"
-#include "hw/irq.h"
-#include "hw/watchdog/cmsdk-apb-watchdog.h"
-#include "migration/vmstate.h"
-#include "hw/misc/unimp.h"
-#include "hw/timer/stellaris-gptm.h"
-#include "hw/qdev-clock.h"
-#include "qom/object.h"
-#include "qapi/qmp/qlist.h"
-#include "ui/input.h"
-
-typedef struct TM4ADCState TM4ADCState;
-DECLARE_INSTANCE_CHECKER(TM4ADCState, TM4_ADC, TYPE_TM4_ADC)
-
-// Define device registers
-struct TM4ADCState {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    uint32_t actss;
-    uint32_t ris;
-    uint32_t im;
-    uint32_t emux;
-    uint32_t ostat;
-    uint32_t ustat;
-    uint32_t tssel;
-    uint32_t sspri;
-    uint32_t spc;
-    uint32_t pssi;
-    uint32_t sac;
-    uint32_t dcisc;
-    uint32_t ctl;
-    struct {
-        uint32_t state;
-        uint32_t data[16];
-    } fifo[4];
-    uint32_t ssmux[4];
-    uint32_t ssctl[4];
-    uint32_t ssop[4];
-    uint32_t ssdc[4];
-    uint32_t dcric;
-    uint32_t dcctl[8];
-    uint32_t dccmp[8];
-    uint32_t pc;
-    uint32_t cc;
-
-    qemu_irq nvic_irq[4];
-    // Each ain value is the voltage of the AIN in milli-volts
-    uint32_t ain[12];
-};
-
 // Read a value from the SSFIFO, also updates underflow / tail / head pointers
-static uint32_t adc_fifo_read(TM4ADCState *s, int ss)
+static uint32_t adc_fifo_read(ADCState *s, int ss)
 {
     int tail;
 
@@ -85,7 +18,7 @@ static uint32_t adc_fifo_read(TM4ADCState *s, int ss)
 }
 
 // Write a value to the SSFIFO, also updates overflow / tail / head pointers
-static void adc_fifo_write(TM4ADCState *s, int ss, uint32_t value)
+static void adc_fifo_write(ADCState *s, int ss, uint32_t value)
 {
     int head;
 
@@ -105,7 +38,7 @@ static void adc_fifo_write(TM4ADCState *s, int ss, uint32_t value)
 }
 
 // Update interrupts based on ris and im
-static void adc_update_nvic(TM4ADCState *s)
+static void adc_update_nvic(ADCState *s)
 {
     int level;
     int n;
@@ -119,14 +52,14 @@ static void adc_update_nvic(TM4ADCState *s)
 // AIN triggers store the 'level' value as the AIN input voltage in milli-volts.
 static void adc_ain_trigger(void *opaque, int irq, int level) 
 {
-    TM4ADCState *s = opaque;
+    ADCState *s = opaque;
     s->ain[irq] = level;
 }
 
 // TODO: Any other triggers we desire (other events from SSEMUX)
 
 // Runs when the PSSI value is updated. Handles the PSSI trigger
-static void adc_pssi_trigger(TM4ADCState *s)
+static void adc_pssi_trigger(ADCState *s)
 {
     // Check the sync status
     if (s->pssi & 0x08000000 && ~s->pssi & 0x80000000) {
@@ -145,7 +78,7 @@ static void adc_pssi_trigger(TM4ADCState *s)
             continue;
         }
         // Check sample sequence 'i' is triggered and the sequence is enabled
-        if ((~s->pssi & ~s->actss & bit_i) {
+        if (~s->pssi & ~s->actss & bit_i) {
             continue;
         }
         // Read each sample of the ss
@@ -172,7 +105,7 @@ static void adc_pssi_trigger(TM4ADCState *s)
 // Resets the ADC
 static void adc_reset_hold(Object *obj)
 {
-    TM4ADCState *s = TM4_ADC(obj);
+    ADCState *s = TM4_ADC(obj);
     int n;
 
     s->sspri = 0x00003210;
@@ -197,7 +130,7 @@ static void adc_reset_hold(Object *obj)
 static uint64_t adc_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
-    TM4ADCState *s = opaque;
+    ADCState *s = opaque;
 
     if (offset >= 0x40 && offset < 0xc0) {
         int n;
@@ -271,7 +204,7 @@ static uint64_t adc_read(void *opaque, hwaddr offset,
 static void adc_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
-    TM4ADCState *s = opaque;
+    ADCState *s = opaque;
 
     if (offset >= 0x40 && offset < 0xc0) {
         int n;
@@ -364,7 +297,7 @@ static void adc_write(void *opaque, hwaddr offset,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "ADC: write at bad offset 0x%x\n", (int)offset);
     }
-    adc_update(s);
+    adc_update_nvic(s);
 }
 
 // ADC iomem read / write operations
@@ -380,61 +313,60 @@ static const VMStateDescription vmstate_adc = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(actss, TM4ADCState),
-        VMSTATE_UINT32(ris, TM4ADCState),
-        VMSTATE_UINT32(im, TM4ADCState),
-        VMSTATE_UINT32(emux, TM4ADCState),
-        VMSTATE_UINT32(ostat, TM4ADCState),
-        VMSTATE_UINT32(ustat, TM4ADCState),
-        VMSTATE_UINT32(sspri, TM4ADCState),
-        VMSTATE_UINT32(spc, TM4ADCState),
-        VMSTATE_UINT32(pssi, TM4ADCState),
-        VMSTATE_UINT32(sac, TM4ADCState),
-        VMSTATE_UINT32(dcisc, TM4ADCState),
-        VMSTATE_UINT32(ctl, TM4ADCState),
-        VMSTATE_UINT32(fifo[0].state, TM4ADCState),
-        VMSTATE_UINT32_ARRAY(fifo[0].data, TM4ADCState, 16),
-        VMSTATE_UINT32(ssmux[0], TM4ADCState),
-        VMSTATE_UINT32(ssctl[0], TM4ADCState),
-        VMSTATE_UINT32(ssop[0], TM4ADCState),
-        VMSTATE_UINT32(ssdc[0], TM4ADCState),
-        VMSTATE_UINT32(fifo[1].state, TM4ADCState),
-        VMSTATE_UINT32_ARRAY(fifo[1].data, TM4ADCState, 16),
-        VMSTATE_UINT32(ssmux[1], TM4ADCState),
-        VMSTATE_UINT32(ssctl[1], TM4ADCState),
-        VMSTATE_UINT32(ssop[1], TM4ADCState),
-        VMSTATE_UINT32(ssdc[1], TM4ADCState),
-        VMSTATE_UINT32(fifo[2].state, TM4ADCState),
-        VMSTATE_UINT32_ARRAY(fifo[2].data, TM4ADCState, 16),
-        VMSTATE_UINT32(ssmux[2], TM4ADCState),
-        VMSTATE_UINT32(ssctl[2], TM4ADCState),
-        VMSTATE_UINT32(ssop[2], TM4ADCState),
-        VMSTATE_UINT32(ssdc[2], TM4ADCState),
-        VMSTATE_UINT32(fifo[3].state, TM4ADCState),
-        VMSTATE_UINT32_ARRAY(fifo[3].data, TM4ADCState, 16),
-        VMSTATE_UINT32(ssmux[3], TM4ADCState),
-        VMSTATE_UINT32(ssctl[3], TM4ADCState),
-        VMSTATE_UINT32(ssop[3], TM4ADCState),
-        VMSTATE_UINT32(ssdc[3], TM4ADCState),
-        VMSTATE_UINT32(dcctl[0], TM4ADCState),
-        VMSTATE_UINT32(dcctl[1], TM4ADCState),
-        VMSTATE_UINT32(dcctl[2], TM4ADCState),
-        VMSTATE_UINT32(dcctl[3], TM4ADCState),
-        VMSTATE_UINT32(dcctl[4], TM4ADCState),
-        VMSTATE_UINT32(dcctl[5], TM4ADCState),
-        VMSTATE_UINT32(dcctl[6], TM4ADCState),
-        VMSTATE_UINT32(dcctl[7], TM4ADCState),
-        VMSTATE_UINT32(dccmp[0], TM4ADCState),
-        VMSTATE_UINT32(dccmp[1], TM4ADCState),
-        VMSTATE_UINT32(dccmp[2], TM4ADCState),
-        VMSTATE_UINT32(dccmp[3], TM4ADCState),
-        VMSTATE_UINT32(dccmp[4], TM4ADCState),
-        VMSTATE_UINT32(dccmp[5], TM4ADCState),
-        VMSTATE_UINT32(dccmp[6], TM4ADCState),
-        VMSTATE_UINT32(dccmp[7], TM4ADCState),
-        VMSTATE_UINT32(pc, TM4ADCState),
-        VMSTATE_UINT32(cc, TM4ADCState),
-        VMSTATE_UINT32(noise, TM4ADCState),
+        VMSTATE_UINT32(actss, ADCState),
+        VMSTATE_UINT32(ris, ADCState),
+        VMSTATE_UINT32(im, ADCState),
+        VMSTATE_UINT32(emux, ADCState),
+        VMSTATE_UINT32(ostat, ADCState),
+        VMSTATE_UINT32(ustat, ADCState),
+        VMSTATE_UINT32(sspri, ADCState),
+        VMSTATE_UINT32(spc, ADCState),
+        VMSTATE_UINT32(pssi, ADCState),
+        VMSTATE_UINT32(sac, ADCState),
+        VMSTATE_UINT32(dcisc, ADCState),
+        VMSTATE_UINT32(ctl, ADCState),
+        VMSTATE_UINT32(fifo[0].state, ADCState),
+        VMSTATE_UINT32_ARRAY(fifo[0].data, ADCState, 16),
+        VMSTATE_UINT32(ssmux[0], ADCState),
+        VMSTATE_UINT32(ssctl[0], ADCState),
+        VMSTATE_UINT32(ssop[0], ADCState),
+        VMSTATE_UINT32(ssdc[0], ADCState),
+        VMSTATE_UINT32(fifo[1].state, ADCState),
+        VMSTATE_UINT32_ARRAY(fifo[1].data, ADCState, 16),
+        VMSTATE_UINT32(ssmux[1], ADCState),
+        VMSTATE_UINT32(ssctl[1], ADCState),
+        VMSTATE_UINT32(ssop[1], ADCState),
+        VMSTATE_UINT32(ssdc[1], ADCState),
+        VMSTATE_UINT32(fifo[2].state, ADCState),
+        VMSTATE_UINT32_ARRAY(fifo[2].data, ADCState, 16),
+        VMSTATE_UINT32(ssmux[2], ADCState),
+        VMSTATE_UINT32(ssctl[2], ADCState),
+        VMSTATE_UINT32(ssop[2], ADCState),
+        VMSTATE_UINT32(ssdc[2], ADCState),
+        VMSTATE_UINT32(fifo[3].state, ADCState),
+        VMSTATE_UINT32_ARRAY(fifo[3].data, ADCState, 16),
+        VMSTATE_UINT32(ssmux[3], ADCState),
+        VMSTATE_UINT32(ssctl[3], ADCState),
+        VMSTATE_UINT32(ssop[3], ADCState),
+        VMSTATE_UINT32(ssdc[3], ADCState),
+        VMSTATE_UINT32(dcctl[0], ADCState),
+        VMSTATE_UINT32(dcctl[1], ADCState),
+        VMSTATE_UINT32(dcctl[2], ADCState),
+        VMSTATE_UINT32(dcctl[3], ADCState),
+        VMSTATE_UINT32(dcctl[4], ADCState),
+        VMSTATE_UINT32(dcctl[5], ADCState),
+        VMSTATE_UINT32(dcctl[6], ADCState),
+        VMSTATE_UINT32(dcctl[7], ADCState),
+        VMSTATE_UINT32(dccmp[0], ADCState),
+        VMSTATE_UINT32(dccmp[1], ADCState),
+        VMSTATE_UINT32(dccmp[2], ADCState),
+        VMSTATE_UINT32(dccmp[3], ADCState),
+        VMSTATE_UINT32(dccmp[4], ADCState),
+        VMSTATE_UINT32(dccmp[5], ADCState),
+        VMSTATE_UINT32(dccmp[6], ADCState),
+        VMSTATE_UINT32(dccmp[7], ADCState),
+        VMSTATE_UINT32(pc, ADCState),
+        VMSTATE_UINT32(cc, ADCState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -443,9 +375,14 @@ static const VMStateDescription vmstate_adc = {
 static void adc_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
-    TM4ADCState *s = TM4_ADC(obj);
+    ADCState *s = TM4_ADC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     int n;
+
+    // Initialize iomem
+    memory_region_init_io(&s->iomem, obj, &adc_ops, s,
+                          "adc", 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem);
 
     // Outputs for nvic
     for (n = 0; n < 4; n++) {
@@ -454,13 +391,9 @@ static void adc_init(Object *obj)
 
     // Inputs 0-11 are for AIN 0-11
     for (n = 0; n < 12; n++) {
-        qdev_init_gpio_in(dev, adc_ain_trigger, n);
+        sysbus_init_irq(sbd, &s->ain_irq[n]);
+        qdev_init_gpio_in(dev, adc_ain_trigger, n + 4);
     }
-
-    // Initialize iomem
-    memory_region_init_io(&s->iomem, obj, &adc_ops, s,
-                          "adc", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
 }
 
 // Initialize ADC class for QEMU
@@ -477,15 +410,13 @@ static void adc_class_init(ObjectClass *klass, void *data)
 static const TypeInfo adc_info = {
     .name          = TYPE_TM4_ADC,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(TM4ADCState),
+    .instance_size = sizeof(ADCState),
     .instance_init = adc_init,
     .class_init    = adc_class_init,
 };
 
-// attribute used to prevent compiler warnings, static function
-// used in tm4c123gh6pm.c, not here
 // Register the ADC info as a new QEMU type
-__attribute__((used)) static void adc_register_types(void)
+void adc_register_types(void)
 {
     type_register_static(&adc_info);
 }
