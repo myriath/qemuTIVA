@@ -1,4 +1,4 @@
-#include "hw/tm4c123gh6pm/include/adc.h"
+#include "hw/tm4c123gh6pm/board/include/adc.h"
 
 // Read a value from the SSFIFO, also updates underflow / tail / head pointers
 static uint32_t adc_fifo_read(ADCState *s, int ss)

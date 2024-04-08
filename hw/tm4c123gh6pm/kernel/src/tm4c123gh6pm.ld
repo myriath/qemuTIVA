@@ -1,6 +1,6 @@
 MEMORY {
         FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 256K
-        SRAM  (rw) : ORIGIN = 0x20001000, LENGTH = 60K
+        SRAM  (rw) : ORIGIN = 0x20001000, LENGTH = 28K
 }
 
 SECTIONS {
