@@ -1,4 +1,4 @@
-#include "tm4c123gh6pm.h"
+#include "hw/tm4c123gh6pm/include/tm4c123gh6pm.h"
 
 static void ssys_update(ssys_state *s)
 {
