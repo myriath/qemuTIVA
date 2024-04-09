@@ -5,14 +5,6 @@ static void ssys_update(ssys_state *s)
     qemu_set_irq(s->irq, (s->ris & s->imc) != 0);
 }
 
-#define DID0_VER_MASK        0x70000000
-#define DID0_VER_0           0x00000000
-#define DID0_VER_1           0x10000000
-
-#define DID0_CLASS_MASK      0x00FF0000
-#define DID0_CLASS_SANDSTORM 0x00000000
-#define DID0_CLASS_FURY      0x00010000
-
 static uint64_t ssys_read(void *opaque, hwaddr offset,
                           unsigned size)
 {
@@ -1197,8 +1189,6 @@ static const TypeInfo tm4c123gh6pm_sys_info = {
 
 static void tm4c123gh6pm_register_types(void)
 {
-    // i2c_register_types();
-    adc_register_types();
     type_register_static(&tm4c123gh6pm_sys_info);
 }
 type_init(tm4c123gh6pm_register_types)

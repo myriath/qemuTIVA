@@ -8,7 +8,6 @@ config TM4C123GH6PM
     select I2C
     select PL011 # UART
     select PL022 # SPI
-    select PL061 # GPIO
     select SSD0303 # OLED display
     select SSD0323 # OLED display
     select SSI_SD

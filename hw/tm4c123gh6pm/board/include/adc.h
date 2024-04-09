@@ -61,6 +61,4 @@ struct ADCState {
 typedef struct ADCState ADCState;
 DECLARE_INSTANCE_CHECKER(ADCState, TM4_ADC, TYPE_TM4_ADC)
 
-void adc_register_types(void);
-
 #endif
