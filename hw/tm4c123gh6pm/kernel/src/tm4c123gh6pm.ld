@@ -15,6 +15,7 @@ SECTIONS {
     
     .data : {
         . = ALIGN(4);
+        KEEP(*(.vectors_dynamic))
         _sram_sdata = .;
         *(.data);
         . = ALIGN(4);

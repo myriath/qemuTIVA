@@ -22,7 +22,8 @@
 //
 //*****************************************************************************
 
-#include <stdint.h>
+#include "tm4c123gh6pm_kernel.h"
+#define VECTOR_COUNT 155
 
 //*****************************************************************************
 //
@@ -30,25 +31,24 @@
 //
 //*****************************************************************************
 void ResetISR(void);
-static void ExitQEMU(void);
+void ExitQEMU(void);
 static void NmiSR(void);
-static void FaultISR(void);
 static void IntDefaultHandler(void);
 
 //*****************************************************************************
 //
-// External declaration for the reset handler that is to be called when the
-// processor is started
+// External declaration for the main function to be called when the processor
+// restarts.
 //
 //*****************************************************************************
 extern void main(void);
 
 //*****************************************************************************
 //
-// Linker variable that marks the top of the stack.
+// Linker variables that mark the different placements of sections
 //
 //*****************************************************************************
-extern void _sram_stacktop(void);
+extern unsigned int _sram_stacktop;
 extern unsigned int _flash_sdata;
 extern unsigned int _sram_sdata;
 extern unsigned int _sram_edata;
@@ -69,13 +69,13 @@ extern unsigned int _sram_ebss;
 // the program if located at a start address other than 0.
 //
 //*****************************************************************************
-__attribute__((used, section(".vectors"))) 
-void (* const vectors[])(void) =
+__attribute__((used, section(".vectors")))
+static void (* const vectors[VECTOR_COUNT])(void) =
 {
-    &_sram_stacktop,                        // The initial stack pointer
-    ResetISR,                               // The reset handler
-    NmiSR,                                  // The NMI handler
-    FaultISR,                               // The hard fault handler
+    (void (*)(void))(&_sram_stacktop),
+    ResetISR,
+    NmiSR,
+    ExitQEMU,
     IntDefaultHandler,                      // The MPU fault handler
     IntDefaultHandler,                      // The bus fault handler
     IntDefaultHandler,                      // The usage fault handler
@@ -231,6 +231,16 @@ void (* const vectors[])(void) =
 
 //*****************************************************************************
 //
+// The vector table.  Note that the proper constructs must be placed on this to
+// ensure that it ends up at physical address 0x0000.0000 or at the start of
+// the program if located at a start address other than 0.
+//
+//*****************************************************************************
+__attribute__((used, section(".vectors_dynamic"))) 
+static void (*vectors_dynamic[VECTOR_COUNT])(void);
+
+//*****************************************************************************
+//
 // This is the code that gets called when the processor first starts execution
 // following a reset event.  Only the absolutely necessary set is performed,
 // after which the application supplied entry() routine is called.  Any fancy
@@ -254,13 +264,19 @@ ResetISR(void)
     while (dst < &_sram_ebss)
         *dst++ = 0;
 
+    // Set VTABLE
+    NVIC_VTABLE_R = 0x20001000;
+    int i;
+    for (i = 0; i < VECTOR_COUNT; i++) {
+        vectors_dynamic[i] = vectors[i];
+    }
+
     main();
 
     ExitQEMU();
 }
 
-static void
-ExitQEMU(void)
+void ExitQEMU(void)
 {
     __asm(" .global _exit_qemu\n"
           " _exit_qemu:\n"                 // Exits QEMU on finish cleanly
@@ -289,24 +305,6 @@ NmiSR(void)
 
 //*****************************************************************************
 //
-// This is the code that gets called when the processor receives a fault
-// interrupt.  This simply enters an infinite loop, preserving the system state
-// for examination by a debugger.
-//
-//*****************************************************************************
-static void
-FaultISR(void)
-{
-    //
-    // Enter an infinite loop.
-    //
-    while(1)
-    {
-    }
-}
-
-//*****************************************************************************
-//
 // This is the code that gets called when the processor receives an unexpected
 // interrupt.  This simply enters an infinite loop, preserving the system state
 // for examination by a debugger.
@@ -315,10 +313,44 @@ FaultISR(void)
 static void
 IntDefaultHandler(void)
 {
-    //
-    // Go into an infinite loop.
-    //
-    while(1)
-    {
+    // Do nothing and return. Infinite loops would be bad
+    return;
+}
+
+// Handle dynamic interrupts.
+int IntRegister(uint32_t interrupt, void (*handler)(void))
+{
+    // Interrupt 0 is technically entry 16 in the vector table
+    interrupt += 16;
+    // Check that the interrupt isn't reserved and isn't the stack pointer
+    if (vectors_dynamic[interrupt] == 0) return 0;
+    if (interrupt == 0) return 0;
+
+    vectors_dynamic[interrupt] = handler;
+
+    return 1;
+}
+
+int IntUnregister(uint32_t interrupt)
+{
+    // Interrupt 0 is technically entry 16 in the vector table
+    interrupt += 16;
+    // Check that the interrupt isn't reserved and isn't the stack pointer
+    if (vectors_dynamic[interrupt] == 0) return 0;
+    if (interrupt == 0) return 0;
+
+    switch (interrupt) {
+        case 1:
+            vectors_dynamic[1] = ResetISR;
+            break;
+        case 2:
+            vectors_dynamic[2] = NmiSR;
+            break;
+        case 3:
+            vectors_dynamic[3] = ExitQEMU;
+            break;
+        default:
+            vectors_dynamic[interrupt] = IntDefaultHandler;
     }
+    return 1;
 }
