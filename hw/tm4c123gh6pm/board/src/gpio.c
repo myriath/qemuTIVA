@@ -179,8 +179,8 @@ static uint64_t gpio_read(void *opaque, hwaddr offset,
     case 0xfd0 ... 0xfff:
         return s->id[(offset - 0xfd0) >> 2];
     default:
-    bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR, "gpio_read: Bad offset %x\n", (int)offset);
+        return 0;
     }
 }
 
@@ -190,7 +190,6 @@ static void gpio_write(void *opaque, hwaddr offset,
     GPIOState *s = opaque;
     uint8_t mask;
     uint8_t value8 = value & 0xff;
-    uint16_t value16 = value & 0xffff;
 
     switch (offset) {
     case 0x000 ... 0x3ff:
@@ -267,7 +266,6 @@ static void gpio_write(void *opaque, hwaddr offset,
         s->dmactl = value8;
         break;
     default:
-    bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR, "gpio_read: Bad offset %x\n", (int)offset);
     }
 
@@ -349,7 +347,7 @@ static void gpio_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    s->id = 0; // TODO
+    s->id = pl061_id_luminary;
 
     memory_region_init_io(&s->iomem, obj, &gpio_ops, s, TYPE_TM4_GPIO, 0x1000);
     
@@ -362,7 +360,7 @@ static void gpio_init(Object *obj)
 
 static void gpio_realize(DeviceState *dev, Error **errp)
 {
-    GPIOState *s = PL061(dev);
+    GPIOState *s = TM4_GPIO(dev);
 
     if (s->pur > 0xff) {
         error_setg(errp, "pullups property must be between 0 and 0xff");

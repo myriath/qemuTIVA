@@ -46,6 +46,7 @@ struct GPIOState {
 
     qemu_irq nvic_irq;
     qemu_irq out[N_BITS];
+    float analog_out[N_BITS];
 };
 
 #define TYPE_TM4_GPIO "tm4-gpio"

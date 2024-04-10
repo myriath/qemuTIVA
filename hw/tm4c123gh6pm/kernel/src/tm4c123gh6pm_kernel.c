@@ -24,6 +24,9 @@
 
 #include "tm4c123gh6pm_kernel.h"
 #define VECTOR_COUNT 155
+#define NUM_INTERRUPTS 138
+
+#define HWREG(adr) (*((volatile uint32_t *)adr))
 
 //*****************************************************************************
 //
@@ -59,8 +62,7 @@ extern unsigned int _sram_ebss;
 //
 // External declarations for the interrupt handlers used by the application.
 //
-//*****************************************************************************
-// To be added by user
+//****************************************************************************
 
 //*****************************************************************************
 //
@@ -73,9 +75,9 @@ __attribute__((used, section(".vectors")))
 static void (* const vectors[VECTOR_COUNT])(void) =
 {
     (void (*)(void))(&_sram_stacktop),
-    ResetISR,
-    NmiSR,
-    ExitQEMU,
+    ResetISR,                               // Stack top
+    NmiSR,                                  // Reset
+    ExitQEMU,                               // NMI
     IntDefaultHandler,                      // The MPU fault handler
     IntDefaultHandler,                      // The bus fault handler
     IntDefaultHandler,                      // The usage fault handler
@@ -229,15 +231,9 @@ static void (* const vectors[VECTOR_COUNT])(void) =
     IntDefaultHandler                       // PWM 1 Fault
 };
 
-//*****************************************************************************
-//
-// The vector table.  Note that the proper constructs must be placed on this to
-// ensure that it ends up at physical address 0x0000.0000 or at the start of
-// the program if located at a start address other than 0.
-//
-//*****************************************************************************
+// RAM Vector table, for dynamic interrupts
 __attribute__((used, section(".vectors_dynamic"))) 
-static void (*vectors_dynamic[VECTOR_COUNT])(void);
+static void (*vectors_ram[VECTOR_COUNT])(void) __attribute__((aligned(1024)));
 
 //*****************************************************************************
 //
@@ -264,25 +260,22 @@ ResetISR(void)
     while (dst < &_sram_ebss)
         *dst++ = 0;
 
-    // Set VTABLE
-    NVIC_VTABLE_R = 0x20001000;
-    int i;
-    for (i = 0; i < VECTOR_COUNT; i++) {
-        vectors_dynamic[i] = vectors[i];
-    }
-
     main();
 
     ExitQEMU();
 }
 
+// Exits QEMU cleanly via semihosting call 0x18
+
 void ExitQEMU(void)
 {
-    __asm(" .global _exit_qemu\n"
-          " _exit_qemu:\n"                 // Exits QEMU on finish cleanly
-          "     mov r0, #0x18\n"           // angel_SWIreason_ReportException
-          "     ldr r1, =#0x20026\n"       // ADP_Stopped_ApplicationExit
-          "     bkpt #0xab");              // create exception with semihosting")
+    __asm__(
+        " .global _exit_qemu\n"
+        " _exit_qemu:\n"                // Exits QEMU on finish cleanly
+        "     mov r0, #0x18\n"          // angel_SWIreason_ReportException
+        "     ldr r1, =#0x20026\n"      // ADP_Stopped_ApplicationExit
+        "     bkpt #0xab"               // create exception with semihosting
+    );
 }
 
 //*****************************************************************************
@@ -317,40 +310,299 @@ IntDefaultHandler(void)
     return;
 }
 
-// Handle dynamic interrupts.
-int IntRegister(uint32_t interrupt, void (*handler)(void))
+// Executes the CPSIE instruction to enable interrupts.
+uint32_t CPU_CPSIE(void)
 {
-    // Interrupt 0 is technically entry 16 in the vector table
-    interrupt += 16;
-    // Check that the interrupt isn't reserved and isn't the stack pointer
-    if (vectors_dynamic[interrupt] == 0) return 0;
-    if (interrupt == 0) return 0;
+    __asm__(
+        "   mrs     r0, PRIMASK\n"
+        "   cpsie   i\n"
+        "   bx      lr\n"
+    );
+    // Unreachable; for the compiler
+    return 0;
+};
 
-    vectors_dynamic[interrupt] = handler;
+// Executes the CPSID instruction to disable interrupts.
+uint32_t CPU_CPSID(void)
+{
+    __asm__(
+        "   mrs     r0, PRIMASK\n"
+        "   cpsid   i\n"
+        "   bx      lr\n"
+    );
+    // Unreachable; for the compiler
+    return 0;
+};
 
-    return 1;
+// Enable interrupts
+bool IntMasterEnable()
+{
+    return(CPU_CPSIE());
 }
 
-int IntUnregister(uint32_t interrupt)
+// Disable interrupts
+bool IntMasterDisable()
 {
-    // Interrupt 0 is technically entry 16 in the vector table
-    interrupt += 16;
-    // Check that the interrupt isn't reserved and isn't the stack pointer
-    if (vectors_dynamic[interrupt] == 0) return 0;
-    if (interrupt == 0) return 0;
+    return(CPU_CPSID());
+}
+
+// Handle dynamic interrupts.
+void IntRegister(uint32_t interrupt, void (*handler)(void))
+{
+    // Check the interrupt number is valid
+    if (interrupt >= VECTOR_COUNT) return;
+    // Check the vector table is aligned 1024
+    if ((uint32_t)vectors_ram & 0x3ff != 0) return;
+
+    // Initialize the RAM vector table, if it hasn't been
+    if (NVIC_VTABLE_R != (uint32_t)vectors_ram) {
+        // Copy the vectors to the new table
+        int i;
+        for (i = 0; i < VECTOR_COUNT; i++) {
+            vectors_ram[i] = vectors[i];
+        }
+        // Point the NVIC to the RAM vector table
+        NVIC_VTABLE_R = (uint32_t)vectors_ram;
+    }
+
+    vectors_ram[interrupt] = handler;
+}
+
+void IntUnregister(uint32_t interrupt)
+{
+    if (interrupt >= VECTOR_COUNT) return;
 
     switch (interrupt) {
+        case 0:
+            vectors_ram[0] = (void (*)(void))(_sram_stacktop);    // Stack
+            break;
         case 1:
-            vectors_dynamic[1] = ResetISR;
+            vectors_ram[1] = ResetISR;          // Reset
             break;
         case 2:
-            vectors_dynamic[2] = NmiSR;
+            vectors_ram[2] = NmiSR;             // NMI
             break;
         case 3:
-            vectors_dynamic[3] = ExitQEMU;
+            vectors_ram[3] = ExitQEMU;          // Hard Fault
             break;
         default:
-            vectors_dynamic[interrupt] = IntDefaultHandler;
+            vectors_ram[interrupt] = IntDefaultHandler;
     }
-    return 1;
+}
+
+// Sets the priority grouping for the interrupt controller.
+void IntPriorityGroupingSet(uint32_t bits)
+{
+    // TODO: there should be a check here, not sure what the real value is tho
+
+    NVIC_APINT_R = NVIC_APINT_R & ~NVIC_APINT_PRIGROUP_M | ((7 - bits) << 8);
+}
+
+// Gets the priority grouping for the interrupt controller.
+uint32_t IntPriorityGroupingGet(void)
+{
+    // TODO: there should be a check here, not sure what the real value is tho
+
+    return 7 - ((NVIC_APINT_R & NVIC_APINT_PRIGROUP_M) >> 8);
+}
+
+const uint32_t NVIC_PRI_BASE = 0xe000e400;
+
+// Set an interrupt's new priority
+void IntPrioritySet(uint32_t interrupt, uint8_t priority)
+{
+    if (interrupt < 4 || interrupt >= VECTOR_COUNT) return;
+
+    uint32_t reg = NVIC_PRI_BASE + (interrupt & ~3);
+    uint32_t shift = 8 * (interrupt & 3) + 5;
+    uint32_t new_priority = (priority & 0x7) << shift;
+
+    uint32_t reg_value = HWREG(reg);
+    HWREG(reg) = reg_value & ~(7 << shift) | new_priority;
+}
+
+// Gets the priority of the interrupt
+uint32_t IntPriorityGet(uint32_t interrupt)
+{
+    if (interrupt < 4 || interrupt >= VECTOR_COUNT) return 0;
+
+    uint32_t reg = interrupt & ~3;
+    uint32_t field = interrupt & 3;
+
+    return ((HWREG(NVIC_PRI_BASE + reg) >> (8 * field + 5)) & 0xff);
+}
+
+static const uint32_t NVIC_EN_BASE = 0xe000e100;
+
+// Enable the given interrupt in the NVIC.
+// Interrupt numbers are offset 16 from the vector table
+void IntEnable(uint32_t interrupt)
+{
+    if (interrupt >= VECTOR_COUNT) return;
+
+    switch (interrupt) {
+        case 3:     // MPU Fault
+            NVIC_SYS_HND_CTRL_R |= NVIC_SYS_HND_CTRL_MEM;
+            break;
+        case 4:     // BUS Fault
+            NVIC_SYS_HND_CTRL_R |= NVIC_SYS_HND_CTRL_BUS;
+            break;
+        case 5:     // Usage Fault
+            NVIC_SYS_HND_CTRL_R |= NVIC_SYS_HND_CTRL_USAGE;
+            break;
+        case 14:    // SysTick Fault
+            NVIC_ST_CTRL_R |= NVIC_ST_CTRL_INTEN;
+            break;
+        default:
+            if (interrupt < 16) return;
+            // Vector Numbers in NVIC are offset 16 from the actual vector table
+            interrupt -= 16;
+            // en# register |= mask
+            uint32_t reg = (interrupt >> 5) << 2;
+            uint32_t field = interrupt & 0x1f;
+
+            HWREG(NVIC_EN_BASE + reg) |= 1 << field;
+    }
+}
+
+static const uint32_t NVIC_DIS_BASE = 0xe000e180;
+
+// Disable the given interrupt
+void IntDisable(uint32_t interrupt)
+{
+    if (interrupt >= VECTOR_COUNT) return;
+
+    switch (interrupt) {
+        case 3:     // MPU Fault
+            NVIC_SYS_HND_CTRL_R &= ~NVIC_SYS_HND_CTRL_MEM;
+            break;
+        case 4:     // BUS Fault
+            NVIC_SYS_HND_CTRL_R &= ~NVIC_SYS_HND_CTRL_BUS;
+            break;
+        case 5:     // Usage Fault
+            NVIC_SYS_HND_CTRL_R &= ~NVIC_SYS_HND_CTRL_USAGE;
+            break;
+        case 14:    // SysTick Fault
+            NVIC_ST_CTRL_R &= ~NVIC_ST_CTRL_INTEN;
+            break;
+        default:
+            if (interrupt < 16) return;
+            // Vector Numbers in NVIC are offset 16 from the actual vector table
+            interrupt -= 16;
+            // en# register |= mask
+            uint32_t reg = (interrupt >> 5) << 2;
+            uint32_t field = interrupt & 0x1f;
+
+            HWREG(NVIC_DIS_BASE + reg) |= 1 << field;
+    }
+}
+
+// Check if the interrupt is enabled
+uint32_t IntIsEnabled(uint32_t interrupt)
+{
+    if (interrupt >= VECTOR_COUNT) return 0;
+
+    switch (interrupt) {
+        case 3:     // MPU Fault
+            return NVIC_SYS_HND_CTRL_R & NVIC_SYS_HND_CTRL_MEM;
+        case 4:     // BUS Fault
+            return NVIC_SYS_HND_CTRL_R & NVIC_SYS_HND_CTRL_BUS;
+        case 5:     // Usage Fault
+            return NVIC_SYS_HND_CTRL_R & NVIC_SYS_HND_CTRL_USAGE;
+        case 14:    // SysTick Fault
+            return NVIC_ST_CTRL_R & NVIC_ST_CTRL_INTEN;
+        default:
+            if (interrupt < 16) return 0;
+            // NVIC interrupts are offset 16
+            interrupt -= 16;
+            // each register holds 32 interrupts, each register offset is 4: 
+            // interrupt / 32 * 4 = interrupt / 8 = interrupt >> 3
+            uint32_t reg = (interrupt >> 5) << 2;
+            uint32_t field = interrupt & 0x1f;
+            return HWREG(NVIC_EN_BASE + reg) & (1 << field);
+    }
+}
+
+static const uint32_t NVIC_PEND_BASE = 0xe000e200;
+
+// Pend an interrupt
+void IntPendSet(uint32_t interrupt)
+{
+    if (interrupt >= VECTOR_COUNT) return;
+
+    switch (interrupt) {
+        case 2:     // NMI Fault
+            NVIC_INT_CTRL_R |= NVIC_INT_CTRL_NMI_SET;
+            break;
+        case 10:    // PendSV Fault
+            NVIC_INT_CTRL_R |= NVIC_INT_CTRL_PEND_SV;
+            break;
+        case 14:    // SysTick Fault
+            NVIC_INT_CTRL_R |= NVIC_INT_CTRL_PENDSTSET;
+            break;
+        default:
+            if (interrupt < 16) return;
+            // Vector Numbers in NVIC are offset 16 from the actual vector table
+            interrupt -= 16;
+            // en# register |= mask
+            uint32_t reg = (interrupt >> 5) << 2;
+            uint32_t field = interrupt & 0x1f;
+
+            HWREG(NVIC_PEND_BASE + reg) |= 1 << field;
+    }
+}
+
+static const uint32_t NVIC_UNPEND_BASE = 0xe000e280;
+
+// Unpend an interrupt
+void IntPendClear(uint32_t interrupt)
+{
+    if (interrupt >= VECTOR_COUNT) return;
+
+    switch (interrupt) {
+        case 10:    // PendSV Fault
+            NVIC_INT_CTRL_R |= NVIC_INT_CTRL_UNPEND_SV;
+            break;
+        case 14:    // SysTick Fault
+            NVIC_INT_CTRL_R |= NVIC_INT_CTRL_PENDSTCLR;
+            break;
+        default:
+            if (interrupt < 16) return;
+            // Vector Numbers in NVIC are offset 16 from the actual vector table
+            interrupt -= 16;
+            // en# register |= mask
+            uint32_t reg = (interrupt >> 5) << 2;
+            uint32_t field = interrupt & 0x1f;
+
+            HWREG(NVIC_UNPEND_BASE + reg) |= 1 << field;
+    }
+}
+
+// Set priority mask
+void IntPriorityMaskSet(uint32_t priority_mask)
+{
+    __asm__(
+        "   msr     BASEPRI, r0\n"
+        "   bx      lr\n"
+    );
+}
+
+// Get priority mask
+uint32_t IntPriorityMaskGet(void)
+{
+    __asm__(
+        "   mrs     r0, BASEPRI\n"
+        "   bx      lr\n"
+    );
+    // Unreachable; for the compiler
+    return 0;
+}
+
+// Trigger an interrupt
+void IntTrigger(uint32_t interrupt)
+{
+    // Ensure valid interrupt
+    if (interrupt < 16 || interrupt >= VECTOR_COUNT) return;
+    // Trigger the interrupt
+    NVIC_SW_TRIG_R = interrupt;
 }

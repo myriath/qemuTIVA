@@ -726,7 +726,7 @@ static void tm4c123gh6pm_init(MachineState *ms)
         0x40024000, 0x40025000
     };
     static const int gpio_irq[6] = {0, 1, 2, 3, 4, 30};
-
+    
     static const uint32_t adc_addr[2] = {0x40038000, 0x40039000};
     static const int adc_irq[2][4] = {{14, 15, 16, 17}, {48, 49, 50, 51}};
 
@@ -811,7 +811,7 @@ static void tm4c123gh6pm_init(MachineState *ms)
 
     DeviceState *gpio_dev[6], *nvic;
     qemu_irq gpio_in[6][8];
-    // qemu_irq gpio_out[6][8];
+    qemu_irq gpio_out[6][8];
     DeviceState *dev;
     DeviceState *ssys_dev;
     int i;
@@ -894,12 +894,14 @@ static void tm4c123gh6pm_init(MachineState *ms)
 
     // GPIO
     for (i = 0; i < 6; i++) {
-        gpio_dev[i] = sysbus_create_simple("pl061_luminary", gpio_addr[i],
+        gpio_dev[i] = sysbus_create_simple(TYPE_TM4_GPIO, gpio_addr[i],
                                             qdev_get_gpio_in(nvic,
                                                             gpio_irq[i]));
         for (j = 0; j < 8; j++) {
+            // GPIO IN are the irqs of data coming IN to the system via GPIO
             gpio_in[i][j] = qdev_get_gpio_in(gpio_dev[i], j);
-            // gpio_out[i][j] = qdev_connect_gpio_out(gpio_dev[i], j);
+            // GPIO OUT are the irqs of data going OUT of the system via GPIO
+            gpio_out[i][j] = NULL;
         }
     }
 
@@ -1135,6 +1137,15 @@ static void tm4c123gh6pm_init(MachineState *ms)
     // create_unimplemented_device("hibernation", 0x400fc000, 0x1000);
     // create_unimplemented_device("flash-control", 0x400fd000, 0x1000);
     // create_unimplemented_device("udma", 0x400ff000, 0x1000);
+
+    // Connect GPIO outputs if they exist
+    for (i = 0; i < 6; i++) {
+        for (j = 0; j < N_BITS; j++) {
+            if (gpio_out[i][j]) {
+                qdev_connect_gpio_out(gpio_dev[i], j, gpio_out[i][j]);
+            }
+        }
+    }
 
     armv7m_load_kernel(ARM_CPU(first_cpu), ms->kernel_filename, 0, flash_size);
 }

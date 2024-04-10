@@ -44,6 +44,7 @@ static void adc_update_nvic(ADCState *s)
     int n;
 
     for (n = 0; n < 4; n++) {
+        // printf("%x, %x, %d\n", s->ris, s->im, (s->ris & s->im & (1 << n)) != 0);
         level = (s->ris & s->im & (1 << n)) != 0;
         qemu_set_irq(s->nvic_irq[n], level);
     }
@@ -61,6 +62,10 @@ static void adc_ain_trigger(void *opaque, int irq, int level)
 // Runs when the PSSI value is updated. Handles the PSSI trigger
 static void adc_pssi_trigger(ADCState *s)
 {
+    printf("ADC: TRIGGERED!\n");
+    // test
+    s->ain[4] = 3300;
+
     // Check the sync status
     if (s->pssi & 0x08000000 && ~s->pssi & 0x80000000) {
         return;
@@ -86,6 +91,7 @@ static void adc_pssi_trigger(ADCState *s)
             nibble_j = j << 2;
             ain_num = s->ssmux[i] & (0xf << nibble_j);
             // Calculate the ADC value based on the input irq 'level' being the voltage in mV
+            printf("Writing AIN%d: %d\n", ain_num, (uint32_t)(s->ain[ain_num] / ((double)3300.0) * 4095) & 0xfff);
             adc_fifo_write(s, i, (uint32_t)(s->ain[ain_num] / ((double)3300.0) * 4095) & 0xfff);
             
             // Set interrupts if they are enabled
@@ -416,7 +422,7 @@ static const TypeInfo adc_info = {
 };
 
 // Register the ADC info as a new QEMU type
-void adc_register_types(void)
+static void adc_register_types(void)
 {
     type_register_static(&adc_info);
 }

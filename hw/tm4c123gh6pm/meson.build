@@ -9,4 +9,4 @@ tm4_ss.add(when: 'CONFIG_TM4C123GH6PM', if_true: files('board/src/adc.c'))
 tm4_ss.add(when: 'CONFIG_TM4C123GH6PM', if_true: files('board/src/gpio.c'))
 tm4_ss.add(when: 'CONFIG_TM4C123GH6PM', if_true: files('board/src/timer.c'))
 
-hw_arch += {'tm4': tm4_ss}
+hw_arch += {'arm': tm4_ss}
