@@ -3,6 +3,7 @@
 
 #include "gpio.h"
 #include "adc.h"
+#include "test_analog.h"
 // #include "i2c.h"
 
 #include "qemu/osdep.h"

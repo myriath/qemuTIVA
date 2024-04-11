@@ -1,10 +1,10 @@
-#include "hw/tm4c123gh6pm/board/include/gpio.h"
+#include "hw/arm/tm4c123gh6pm/board/include/gpio.h"
 
 static const uint8_t pl061_id_luminary[12] =
   { 0x00, 0x00, 0x00, 0x00, 0x61, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1 };
 
 static const VMStateDescription vmstate_gpio = {
-    .name = "tm4-gpio",
+    .name = TYPE_TM4_GPIO,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
@@ -266,7 +266,7 @@ static void gpio_write(void *opaque, hwaddr offset,
         s->dmactl = value8;
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "gpio_read: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "gpio_write: Bad offset %x\n", (int)offset);
     }
 
     gpio_update(s);

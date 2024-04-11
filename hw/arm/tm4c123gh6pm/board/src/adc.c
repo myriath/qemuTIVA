@@ -1,4 +1,4 @@
-#include "hw/tm4c123gh6pm/board/include/adc.h"
+#include "hw/arm/tm4c123gh6pm/board/include/adc.h"
 
 // Read a value from the SSFIFO, also updates underflow / tail / head pointers
 static uint32_t adc_fifo_read(ADCState *s, int ss)
@@ -44,7 +44,6 @@ static void adc_update_nvic(ADCState *s)
     int n;
 
     for (n = 0; n < 4; n++) {
-        // printf("%x, %x, %d\n", s->ris, s->im, (s->ris & s->im & (1 << n)) != 0);
         level = (s->ris & s->im & (1 << n)) != 0;
         qemu_set_irq(s->nvic_irq[n], level);
     }
@@ -62,10 +61,6 @@ static void adc_ain_trigger(void *opaque, int irq, int level)
 // Runs when the PSSI value is updated. Handles the PSSI trigger
 static void adc_pssi_trigger(ADCState *s)
 {
-    printf("ADC: TRIGGERED!\n");
-    // test
-    s->ain[4] = 3300;
-
     // Check the sync status
     if (s->pssi & 0x08000000 && ~s->pssi & 0x80000000) {
         return;
@@ -89,7 +84,7 @@ static void adc_pssi_trigger(ADCState *s)
         // Read each sample of the ss
         for (j = 0; j < sample_counts[i]; j++) {
             nibble_j = j << 2;
-            ain_num = s->ssmux[i] & (0xf << nibble_j);
+            ain_num = (s->ssmux[i] & (0xf << nibble_j)) >> nibble_j;
             // Calculate the ADC value based on the input irq 'level' being the voltage in mV
             printf("Writing AIN%d: %d\n", ain_num, (uint32_t)(s->ain[ain_num] / ((double)3300.0) * 4095) & 0xfff);
             adc_fifo_write(s, i, (uint32_t)(s->ain[ain_num] / ((double)3300.0) * 4095) & 0xfff);
@@ -373,6 +368,7 @@ static const VMStateDescription vmstate_adc = {
         VMSTATE_UINT32(dccmp[7], ADCState),
         VMSTATE_UINT32(pc, ADCState),
         VMSTATE_UINT32(cc, ADCState),
+        VMSTATE_UINT32_ARRAY(ain, ADCState, 12),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -395,11 +391,7 @@ static void adc_init(Object *obj)
         sysbus_init_irq(sbd, &s->nvic_irq[n]);
     }
 
-    // Inputs 0-11 are for AIN 0-11
-    for (n = 0; n < 12; n++) {
-        sysbus_init_irq(sbd, &s->ain_irq[n]);
-        qdev_init_gpio_in(dev, adc_ain_trigger, n + 4);
-    }
+    qdev_init_gpio_in(dev, adc_ain_trigger, 12);
 }
 
 // Initialize ADC class for QEMU

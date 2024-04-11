@@ -1,4 +1,4 @@
-#include "hw/tm4c123gh6pm/board/include/tm4c123gh6pm.h"
+#include "hw/arm/tm4c123gh6pm/board/include/tm4c123gh6pm.h"
 
 static void ssys_update(ssys_state *s)
 {
@@ -810,8 +810,6 @@ static void tm4c123gh6pm_init(MachineState *ms)
      */
 
     DeviceState *gpio_dev[6], *nvic;
-    qemu_irq gpio_in[6][8];
-    qemu_irq gpio_out[6][8];
     DeviceState *dev;
     DeviceState *ssys_dev;
     int i;
@@ -892,6 +890,9 @@ static void tm4c123gh6pm_init(MachineState *ms)
     sysbus_mmio_map(SYS_BUS_DEVICE(ssys_dev), 0, 0x400fe000);
     sysbus_connect_irq(SYS_BUS_DEVICE(ssys_dev), 0, qdev_get_gpio_in(nvic, 28)); // Interrupt 28: System Control
 
+    qemu_irq gpio_in[6][8];
+    qemu_irq gpio_out[6][8];
+
     // GPIO
     for (i = 0; i < 6; i++) {
         gpio_dev[i] = sysbus_create_simple(TYPE_TM4_GPIO, gpio_addr[i],
@@ -905,49 +906,46 @@ static void tm4c123gh6pm_init(MachineState *ms)
         }
     }
 
+    qemu_irq *gpio_ain[] = {
+        &gpio_in[GPIO_E][3], &gpio_in[GPIO_E][2], &gpio_in[GPIO_E][1],
+        &gpio_in[GPIO_E][0], &gpio_in[GPIO_D][3], &gpio_in[GPIO_D][2],
+        &gpio_in[GPIO_D][1], &gpio_in[GPIO_D][0], &gpio_in[GPIO_E][5],
+        &gpio_in[GPIO_E][4], &gpio_in[GPIO_B][5], &gpio_in[GPIO_B][4]
+    };
+
     // ADC
-    dev = sysbus_create_varargs(TYPE_TM4_ADC, adc_addr[0],
+    DeviceState *adc0 = sysbus_create_varargs(TYPE_TM4_ADC, adc_addr[0],
                                 // ADC Sample Sequence 0-3 Interrupts
                                 qdev_get_gpio_in(nvic, adc_irq[0][0]),
                                 qdev_get_gpio_in(nvic, adc_irq[0][1]),
                                 qdev_get_gpio_in(nvic, adc_irq[0][2]),
                                 qdev_get_gpio_in(nvic, adc_irq[0][3]),
-                                // AIN inputs
-                                gpio_in[GPIO_E][3],
-                                gpio_in[GPIO_E][2],
-                                gpio_in[GPIO_E][1],
-                                gpio_in[GPIO_E][0],
-                                gpio_in[GPIO_D][3],
-                                gpio_in[GPIO_D][2],
-                                gpio_in[GPIO_D][1],
-                                gpio_in[GPIO_D][0],
-                                gpio_in[GPIO_E][5],
-                                gpio_in[GPIO_E][4],
-                                gpio_in[GPIO_B][5],
-                                gpio_in[GPIO_B][4],
                                 NULL);
+    
     // qemu_irq adc0 = qdev_get_gpio_in(dev, 0);
-    dev = sysbus_create_varargs(TYPE_TM4_ADC, adc_addr[1],
+    DeviceState *adc1 = sysbus_create_varargs(TYPE_TM4_ADC, adc_addr[1],
                                 // ADC Sample Sequence 0-3 Interrupts
                                 qdev_get_gpio_in(nvic, adc_irq[1][0]),
                                 qdev_get_gpio_in(nvic, adc_irq[1][1]),
                                 qdev_get_gpio_in(nvic, adc_irq[1][2]),
                                 qdev_get_gpio_in(nvic, adc_irq[1][3]),
-                                // AIN inputs
-                                gpio_in[GPIO_E][3],
-                                gpio_in[GPIO_E][2],
-                                gpio_in[GPIO_E][1],
-                                gpio_in[GPIO_E][0],
-                                gpio_in[GPIO_D][3],
-                                gpio_in[GPIO_D][2],
-                                gpio_in[GPIO_D][1],
-                                gpio_in[GPIO_D][0],
-                                gpio_in[GPIO_E][5],
-                                gpio_in[GPIO_E][4],
-                                gpio_in[GPIO_B][5],
-                                gpio_in[GPIO_B][4],
                                 NULL);
-    // qemu_irq adc1 = qdev_get_gpio_in(dev, 0);
+    
+    // Analog test input device
+    dev = sysbus_create_varargs(TYPE_TEST_ANALOG, 0x40002000, NULL);
+    for (i = 0; i < 12; i++) {
+        // Splitter to connect output of analog to each ain and adc
+        DeviceState *splitter = qdev_new(TYPE_SPLIT_IRQ);
+        object_property_add_child(OBJECT(ms), "splitter[*]", OBJECT(splitter));
+        qdev_prop_set_uint32(splitter, "num-lines", 3);
+        qdev_realize_and_unref(splitter, NULL, &error_fatal);
+
+        qdev_connect_gpio_out(splitter, 0, *gpio_ain[i]);
+        qdev_connect_gpio_out(splitter, 1, qdev_get_gpio_in(adc0, i));
+        qdev_connect_gpio_out(splitter, 2, qdev_get_gpio_in(adc1, i));
+
+        qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(splitter, 0));
+    }
 
     // // Timers
     // for (i = 0; i < 12; i++) {
@@ -968,16 +966,6 @@ static void tm4c123gh6pm_init(MachineState *ms)
     //     qdev_connect_gpio_out(dev, 0, adc1);
     // }
 
-    // I2C TODO
-    // if (board->dc2 & (1 << 12)) {
-    //     dev = sysbus_create_simple(TYPE_TM4_I2C, 0x40020000,
-    //                                qdev_get_gpio_in(nvic, 8));
-    //     i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
-    //     if (board->peripherals & BP_OLED_I2C) {
-    //         i2c_slave_create_simple(i2c, "ssd0303", 0x3d);
-    //     }
-    // }
-
     // UART
     for (i = 0; i < 1/*8*/; i++) {
         SysBusDevice *sbd;
@@ -991,161 +979,41 @@ static void tm4c123gh6pm_init(MachineState *ms)
         sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(nvic, uart_irq[i]));
     }
 
-    // SSI TODO
-    // if (board->dc2 & (1 << 4)) {
-    //     dev = sysbus_create_simple("pl022", 0x40008000,
-    //                                qdev_get_gpio_in(nvic, 7));
-    //     if (board->peripherals & BP_OLED_SSI) {
-    //         void *bus;
-    //         DeviceState *sddev;
-    //         DeviceState *ssddev;
-    //         DriveInfo *dinfo;
-    //         DeviceState *carddev;
-    //         DeviceState *gpio_d_splitter;
-    //         BlockBackend *blk;
-
-    //         /*
-    //          * Some boards have both an OLED controller and SD card connected to
-    //          * the same SSI port, with the SD card chip select connected to a
-    //          * GPIO pin.  Technically the OLED chip select is connected to the
-    //          * SSI Fss pin.  We do not bother emulating that as both devices
-    //          * should never be selected simultaneously, and our OLED controller
-    //          * ignores stray 0xff commands that occur when deselecting the SD
-    //          * card.
-    //          *
-    //          * The h/w wiring is:
-    //          *  - GPIO pin D0 is wired to the active-low SD card chip select
-    //          *  - GPIO pin A3 is wired to the active-low OLED chip select
-    //          *  - The SoC wiring of the PL061 "auxiliary function" for A3 is
-    //          *    SSI0Fss ("frame signal"), which is an output from the SoC's
-    //          *    SSI controller. The SSI controller takes SSI0Fss low when it
-    //          *    transmits a frame, so it can work as a chip-select signal.
-    //          *  - GPIO A4 is aux-function SSI0Rx, and wired to the SD card Tx
-    //          *    (the OLED never sends data to the CPU, so no wiring needed)
-    //          *  - GPIO A5 is aux-function SSI0Tx, and wired to the SD card Rx
-    //          *    and the OLED display-data-in
-    //          *  - GPIO A2 is aux-function SSI0Clk, wired to SD card and OLED
-    //          *    serial-clock input
-    //          * So a guest that wants to use the OLED can configure the PL061
-    //          * to make pins A2, A3, A5 aux-function, so they are connected
-    //          * directly to the SSI controller. When the SSI controller sends
-    //          * data it asserts SSI0Fss which selects the OLED.
-    //          * A guest that wants to use the SD card configures A2, A4 and A5
-    //          * as aux-function, but leaves A3 as a software-controlled GPIO
-    //          * line. It asserts the SD card chip-select by using the PL061
-    //          * to control pin D0, and lets the SSI controller handle Clk, Tx
-    //          * and Rx. (The SSI controller asserts Fss during tx cycles as
-    //          * usual, but because A3 is not set to aux-function this is not
-    //          * forwarded to the OLED, and so the OLED stays unselected.)
-    //          *
-    //          * The QEMU implementation instead is:
-    //          *  - GPIO pin D0 is wired to the active-low SD card chip select,
-    //          *    and also to the OLED chip-select which is implemented
-    //          *    as *active-high*
-    //          *  - SSI controller signals go to the devices regardless of
-    //          *    whether the guest programs A2, A4, A5 as aux-function or not
-    //          *
-    //          * The problem with this implementation is if the guest doesn't
-    //          * care about the SD card and only uses the OLED. In that case it
-    //          * may choose never to do anything with D0 (leaving it in its
-    //          * default floating state, which reliably leaves the card disabled
-    //          * because an SD card has a pullup on CS within the card itself),
-    //          * and only set up A2, A3, A5. This for us would mean the OLED
-    //          * never gets the chip-select assert it needs. We work around
-    //          * this with a manual raise of D0 here (despite board creation
-    //          * code being the wrong place to raise IRQ lines) to put the OLED
-    //          * into an initially selected state.
-    //          *
-    //          * In theory the right way to model this would be:
-    //          *  - Implement aux-function support in the PL061, with an
-    //          *    extra set of AFIN and AFOUT GPIO lines (set up so that
-    //          *    if a GPIO line is in auxfn mode the main GPIO in and out
-    //          *    track the AFIN and AFOUT lines)
-    //          *  - Wire the AFOUT for D0 up to either a line from the
-    //          *    SSI controller that's pulled low around every transmit,
-    //          *    or at least to an always-0 line here on the board
-    //          *  - Make the ssd0323 OLED controller chipselect active-low
-    //          */
-    //         bus = qdev_get_child_bus(dev, "ssi");
-    //         sddev = ssi_create_peripheral(bus, "ssi-sd");
-
-    //         dinfo = drive_get(IF_SD, 0, 0);
-    //         blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
-    //         carddev = qdev_new(TYPE_SD_CARD_SPI);
-    //         qdev_prop_set_drive_err(carddev, "drive", blk, &error_fatal);
-    //         qdev_realize_and_unref(carddev,
-    //                                qdev_get_child_bus(sddev, "sd-bus"),
-    //                                &error_fatal);
-
-    //         ssddev = qdev_new("ssd0323");
-    //         object_property_add_child(OBJECT(ms), "oled", OBJECT(ssddev));
-    //         qdev_prop_set_uint8(ssddev, "cs", 1);
-    //         qdev_realize_and_unref(ssddev, bus, &error_fatal);
-
-    //         gpio_d_splitter = qdev_new(TYPE_SPLIT_IRQ);
-    //         object_property_add_child(OBJECT(ms), "splitter",
-    //                                   OBJECT(gpio_d_splitter));
-    //         qdev_prop_set_uint32(gpio_d_splitter, "num-lines", 2);
-    //         qdev_realize_and_unref(gpio_d_splitter, NULL, &error_fatal);
-    //         qdev_connect_gpio_out(
-    //                 gpio_d_splitter, 0,
-    //                 qdev_get_gpio_in_named(sddev, SSI_GPIO_CS, 0));
-    //         qdev_connect_gpio_out(
-    //                 gpio_d_splitter, 1,
-    //                 qdev_get_gpio_in_named(ssddev, SSI_GPIO_CS, 0));
-    //         gpio_out[GPIO_D][0] = qdev_get_gpio_in(gpio_d_splitter, 0);
-
-    //         gpio_out[GPIO_C][7] = qdev_get_gpio_in(ssddev, 0);
-
-    //         /* Make sure the select pin is high.  */
-    //         qemu_irq_raise(gpio_out[GPIO_D][0]);
-    //     }
-    // }
-
-    // // Connect GPIO outs
-    // for (i = 0; i < 6; i++) {
-    //     for (j = 0; j < 8; j++) {
-    //         if (gpio_out[i][j]) {
-    //             qdev_connect_gpio_out(gpio_dev[i], j, gpio_out[i][j]);
-    //         }
-    //     }
-    // }
-
-    /* Add dummy regions for the devices we don't implement yet,
-     * so guest accesses don't cause unlogged crashes.
-     */
-    // create_unimplemented_device("watchdog-0", 0x40000000, 0x1000);
-    // create_unimplemented_device("watchdog-1", 0x40001000, 0x1000);
-    // create_unimplemented_device("ssi0", 0x40008000, 0x1000);
-    // create_unimplemented_device("ssi1", 0x40009000, 0x1000);
-    // create_unimplemented_device("ssi2", 0x4000a000, 0x1000);
-    // create_unimplemented_device("ssi3", 0x4000b000, 0x1000);
-    // create_unimplemented_device("i2c-0", 0x40020000, 0x1000);
-    // create_unimplemented_device("i2c-1", 0x40021000, 0x1000);
-    // create_unimplemented_device("i2c-2", 0x40022000, 0x1000);
-    // create_unimplemented_device("i2c-3", 0x40023000, 0x1000);
-    // create_unimplemented_device("PWM0", 0x40028000, 0x1000);
-    // create_unimplemented_device("PWM1", 0x40029000, 0x1000);
-    // create_unimplemented_device("QEI0", 0x4002c000, 0x1000);
-    // create_unimplemented_device("QEI1", 0x4002d000, 0x1000);
-    // create_unimplemented_device("analogue-comparator", 0x4003c000, 0x1000);
-    // create_unimplemented_device("can0", 0x40040000, 0x1000);
-    // create_unimplemented_device("can1", 0x40041000, 0x1000);
-    // create_unimplemented_device("usb", 0x40050000, 0x1000);
-    // create_unimplemented_device("eeprom-keylocker", 0x400af000, 0x1000);
-    // create_unimplemented_device("system-exception", 0x400f9000, 0x1000);
-    // create_unimplemented_device("hibernation", 0x400fc000, 0x1000);
-    // create_unimplemented_device("flash-control", 0x400fd000, 0x1000);
-    // create_unimplemented_device("udma", 0x400ff000, 0x1000);
-
-    // Connect GPIO outputs if they exist
+    // Connect GPIO outs
     for (i = 0; i < 6; i++) {
-        for (j = 0; j < N_BITS; j++) {
+        for (j = 0; j < 8; j++) {
             if (gpio_out[i][j]) {
                 qdev_connect_gpio_out(gpio_dev[i], j, gpio_out[i][j]);
             }
         }
     }
+
+    /* Add dummy regions for the devices we don't implement yet,
+     * so guest accesses don't cause unlogged crashes.
+     */
+    create_unimplemented_device("watchdog-0", 0x40000000, 0x1000);
+    create_unimplemented_device("watchdog-1", 0x40001000, 0x1000);
+    create_unimplemented_device("ssi0", 0x40008000, 0x1000);
+    create_unimplemented_device("ssi1", 0x40009000, 0x1000);
+    create_unimplemented_device("ssi2", 0x4000a000, 0x1000);
+    create_unimplemented_device("ssi3", 0x4000b000, 0x1000);
+    create_unimplemented_device("i2c-0", 0x40020000, 0x1000);
+    create_unimplemented_device("i2c-1", 0x40021000, 0x1000);
+    create_unimplemented_device("i2c-2", 0x40022000, 0x1000);
+    create_unimplemented_device("i2c-3", 0x40023000, 0x1000);
+    create_unimplemented_device("PWM0", 0x40028000, 0x1000);
+    create_unimplemented_device("PWM1", 0x40029000, 0x1000);
+    create_unimplemented_device("QEI0", 0x4002c000, 0x1000);
+    create_unimplemented_device("QEI1", 0x4002d000, 0x1000);
+    create_unimplemented_device("analogue-comparator", 0x4003c000, 0x1000);
+    create_unimplemented_device("can0", 0x40040000, 0x1000);
+    create_unimplemented_device("can1", 0x40041000, 0x1000);
+    create_unimplemented_device("usb", 0x40050000, 0x1000);
+    create_unimplemented_device("eeprom-keylocker", 0x400af000, 0x1000);
+    create_unimplemented_device("system-exception", 0x400f9000, 0x1000);
+    create_unimplemented_device("hibernation", 0x400fc000, 0x1000);
+    create_unimplemented_device("flash-control", 0x400fd000, 0x1000);
+    create_unimplemented_device("udma", 0x400ff000, 0x1000);
 
     armv7m_load_kernel(ARM_CPU(first_cpu), ms->kernel_filename, 0, flash_size);
 }

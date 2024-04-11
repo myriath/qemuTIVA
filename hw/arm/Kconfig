@@ -1,3 +1,5 @@
+source tm4c123gh6pm/Kconfig
+
 config ARM_VIRT
     bool
     imply PCI_DEVICES

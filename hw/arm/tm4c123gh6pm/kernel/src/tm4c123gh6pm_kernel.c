@@ -74,10 +74,10 @@ extern unsigned int _sram_ebss;
 __attribute__((used, section(".vectors")))
 static void (* const vectors[VECTOR_COUNT])(void) =
 {
-    (void (*)(void))(&_sram_stacktop),
-    ResetISR,                               // Stack top
-    NmiSR,                                  // Reset
-    ExitQEMU,                               // NMI
+    (void (*)(void))(&_sram_stacktop),      // Stack top
+    ResetISR,                               // Reset
+    NmiSR,                                  // NMI
+    ExitQEMU,                               // Hard fault
     IntDefaultHandler,                      // The MPU fault handler
     IntDefaultHandler,                      // The bus fault handler
     IntDefaultHandler,                      // The usage fault handler
@@ -311,7 +311,7 @@ IntDefaultHandler(void)
 }
 
 // Executes the CPSIE instruction to enable interrupts.
-uint32_t CPU_CPSIE(void)
+uint32_t __attribute__((naked)) CPU_CPSIE(void)
 {
     __asm__(
         "   mrs     r0, PRIMASK\n"
@@ -323,7 +323,7 @@ uint32_t CPU_CPSIE(void)
 };
 
 // Executes the CPSID instruction to disable interrupts.
-uint32_t CPU_CPSID(void)
+uint32_t __attribute__((naked)) CPU_CPSID(void)
 {
     __asm__(
         "   mrs     r0, PRIMASK\n"

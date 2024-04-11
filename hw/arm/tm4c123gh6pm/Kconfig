@@ -11,4 +11,5 @@ config TM4C123GH6PM
     select SSD0303 # OLED display
     select SSD0323 # OLED display
     select SSI_SD
+    select SPLIT_IRQ
     select UNIMP

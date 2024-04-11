@@ -69,8 +69,6 @@ source sparc64/Kconfig
 source tricore/Kconfig
 source xtensa/Kconfig
 
-source tm4c123gh6pm/Kconfig
-
 # Symbols used by multiple targets
 config TEST_DEVICES
     bool

@@ -68,5 +68,3 @@ subdir('sparc')
 subdir('sparc64')
 subdir('tricore')
 subdir('xtensa')
-
-subdir('tm4c123gh6pm')
