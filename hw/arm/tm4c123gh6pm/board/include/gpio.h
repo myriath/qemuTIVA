@@ -172,6 +172,10 @@
 #define N_ALTS_PER_LINE 9
 #define N_BITS 8
 
+#define GPIO_ALT_F_PINS "gpio-alt-functions"
+
+#define ALT_F_TO_IRQ(ALT_F, PIN) (N_ALTS_PER_LINE * PIN + ALT_F + N_BITS)
+
 extern const int8_t GPIO_ALTERNATE_FUNCTIONS[6][N_BITS][16];
 
 struct GPIOState {
@@ -208,7 +212,7 @@ struct GPIOState {
     uint16_t levels[N_BITS];
 
     qemu_irq nvic_irq;
-    qemu_irq alt_out[N_BITS][N_ALTS_PER_LINE];
+    qemu_irq outputs[N_BITS][N_ALTS_PER_LINE];
 
     uint8_t port;
 };

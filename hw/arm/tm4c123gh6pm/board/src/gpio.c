@@ -1,5 +1,13 @@
 #include "hw/arm/tm4c123gh6pm/board/include/gpio.h"
 
+struct test_state {
+    Object parent_obj;
+
+    qemu_irq_handler handler;
+    void *opaque;
+    int n;
+};
+
 static const uint8_t pl061_id_luminary[12] =
   { 0x00, 0x00, 0x00, 0x00, 0x61, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1 };
 
@@ -149,7 +157,7 @@ static void gpio_update(GPIOState *s)
             mask = 1 << i;
             if (delta & mask) {
                 int level = (out & mask) != 0;
-                qemu_set_irq(s->out[i], level);
+                qemu_set_irq(s->outputs[i][F_NONE], level);
             }
         }
     }
@@ -205,16 +213,19 @@ static void gpio_update(GPIOState *s)
             masked_pctl = (s->pctl >> (i * 4)) & 0x0f;
             func = GPIO_ALTERNATE_FUNCTIONS[s->port][i][masked_pctl];
             if (func != F_NONE) {
-                qemu_set_irq(s->alt_out[GPIO_ALTERNATE_FUNCTIONS[s->port][i][masked_pctl]], 1);
+                qemu_set_irq(s->outputs[i][GPIO_ALTERNATE_FUNCTIONS[s->port][i][masked_pctl]], 1);
             }
         } else if ((s->amsel & mask) && !masked_den) {
             // Alternate function analog
             printf("Checking Alternate Function\n");
             func = GPIO_ALTERNATE_FUNCTIONS[s->port][i][0];
             printf("Found func: %d\n", func);
+            qemu_irq irq = s->outputs[i][GPIO_ALTERNATE_FUNCTIONS[s->port][i][0]];
+            
+            printf("IRQ = %d %d\n", ALT_F_TO_IRQ(func, i), irq->n);
             if (func != F_NONE) {
                 printf("Writing to alt out: %d\n", GPIO_ALTERNATE_FUNCTIONS[s->port][i][0]);
-                qemu_set_irq(s->alt_out[GPIO_ALTERNATE_FUNCTIONS[s->port][i][0]], s->levels[i]);
+                qemu_set_irq(s->outputs[i][GPIO_ALTERNATE_FUNCTIONS[s->port][i][0]], s->levels[i]);
             }
         }
     }
@@ -410,7 +421,7 @@ static void gpio_hold_reset(Object *obj)
         if (floating & mask) {
             continue;
         }
-        qemu_set_irq(s->out[i], pullups & mask);
+        qemu_set_irq(s->outputs[i][0], pullups & mask);
     }
 }
 
@@ -465,8 +476,8 @@ static void gpio_init(Object *obj)
     qdev_init_gpio_in(dev, gpio_set_irq, N_BITS);
     // Initialize Outputs
     int i;
-    for (i = 0; i < N_ALTS_PER_LINE; i++) {
-        qdev_init_gpio_out(dev, s->alt_out[i], N_ALT_F);
+    for (i = 0; i < N_BITS; i++) {
+        qdev_init_gpio_out(dev, s->outputs[i], N_ALTS_PER_LINE);
     }
 }
 

@@ -940,9 +940,15 @@ static void tm4c123gh6pm_init(MachineState *ms)
     };
 
     int ain_irqs[12] = {
-        F_AIN0, F_AIN1, F_AIN2, F_AIN3,
-        F_AIN4, F_AIN5, F_AIN6, F_AIN7,
-        F_AIN8, F_AIN9, F_AIN10, F_AIN11
+        F_AIN0_E, F_AIN1_E, F_AIN2_E, F_AIN3_E,
+        F_AIN4_D, F_AIN5_D, F_AIN6_D, F_AIN7_D,
+        F_AIN8_E, F_AIN9_E, F_AIN10_B, F_AIN11_B
+    };
+
+    int ain_pins[] = {
+        3, 2, 1, 0,
+        3, 2, 1, 0,
+        5, 4, 5, 4
     };
 
     qemu_irq *gpio_ain[] = {
@@ -967,7 +973,7 @@ static void tm4c123gh6pm_init(MachineState *ms)
         qdev_connect_gpio_out(splitter, 0, qdev_get_gpio_in(adc0, i));
         qdev_connect_gpio_out(splitter, 1, qdev_get_gpio_in(adc1, i));
 
-        qdev_connect_gpio_out(gpio_dev[gpio_ain_ports[i]], ain_irqs[i] + N_BITS, qdev_get_gpio_in(splitter, 0));
+        qdev_connect_gpio_out(gpio_dev[gpio_ain_ports[i]], ALT_F_TO_IRQ(ain_irqs[i], ain_pins[i]), qdev_get_gpio_in(splitter, 0));
     }
 
     // // Timers
