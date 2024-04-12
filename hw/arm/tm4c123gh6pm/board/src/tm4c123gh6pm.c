@@ -939,30 +939,19 @@ static void tm4c123gh6pm_init(MachineState *ms)
         GPIO_E, GPIO_E, GPIO_B, GPIO_B
     };
 
-    int ain_irqs[12] = {
-        F_AIN0_E, F_AIN1_E, F_AIN2_E, F_AIN3_E,
-        F_AIN4_D, F_AIN5_D, F_AIN6_D, F_AIN7_D,
-        F_AIN8_E, F_AIN9_E, F_AIN10_B, F_AIN11_B
-    };
-
-    int ain_pins[] = {
+    uint8_t gpio_ain_pins[] = {
         3, 2, 1, 0,
         3, 2, 1, 0,
         5, 4, 5, 4
     };
 
-    qemu_irq *gpio_ain[] = {
-        &gpio_in[GPIO_E][3], &gpio_in[GPIO_E][2], &gpio_in[GPIO_E][1],
-        &gpio_in[GPIO_E][0], &gpio_in[GPIO_D][3], &gpio_in[GPIO_D][2],
-        &gpio_in[GPIO_D][1], &gpio_in[GPIO_D][0], &gpio_in[GPIO_E][5],
-        &gpio_in[GPIO_E][4], &gpio_in[GPIO_B][5], &gpio_in[GPIO_B][4]
-    };
-
     // Analog test input device
     dev = sysbus_create_varargs(TYPE_TEST_ANALOG, 0x40002000, NULL);
     for (i = 0; i < 12; i++) {
+        uint8_t port = gpio_ain_ports[i];
+        uint8_t pin = gpio_ain_pins[i];
         // Connect analog test device to ains
-        qdev_connect_gpio_out(dev, 0, *gpio_ain[i]);
+        qdev_connect_gpio_out(dev, i, gpio_in[port][pin]);
 
         // Connect gpio to adcs
         DeviceState *splitter = qdev_new(TYPE_SPLIT_IRQ);
@@ -973,7 +962,8 @@ static void tm4c123gh6pm_init(MachineState *ms)
         qdev_connect_gpio_out(splitter, 0, qdev_get_gpio_in(adc0, i));
         qdev_connect_gpio_out(splitter, 1, qdev_get_gpio_in(adc1, i));
 
-        qdev_connect_gpio_out(gpio_dev[gpio_ain_ports[i]], ALT_F_TO_IRQ(ain_irqs[i], ain_pins[i]), qdev_get_gpio_in(splitter, 0));
+        // uint8_t port = gpio_ain_ports[i];
+        qdev_connect_gpio_out_named(gpio_dev[port], GPIO_NAMED_OUTS[pin], F_AIN, qdev_get_gpio_in(splitter, 0));
     }
 
     // // Timers

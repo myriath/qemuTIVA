@@ -12,6 +12,8 @@
 #include "qom/object.h"
 
 #define F_NONE          0
+#define F_AIN           1
+
 #define F_U0Rx_A        1
 #define F_CAN1Rx_A      2
 #define F_U0Tx_A        1
@@ -177,6 +179,7 @@
 #define ALT_F_TO_IRQ(ALT_F, PIN) (N_ALTS_PER_LINE * PIN + ALT_F + N_BITS)
 
 extern const int8_t GPIO_ALTERNATE_FUNCTIONS[6][N_BITS][16];
+extern const char *GPIO_NAMED_OUTS[N_BITS];
 
 struct GPIOState {
     SysBusDevice parent_obj;

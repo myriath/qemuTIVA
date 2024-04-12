@@ -86,7 +86,7 @@ static void adc_pssi_trigger(ADCState *s)
             nibble_j = j << 2;
             ain_num = (s->ssmux[i] & (0xf << nibble_j)) >> nibble_j;
             // Calculate the ADC value based on the input irq 'level' being the voltage in mV
-            printf("Writing AIN%d: %d\n", ain_num, (uint32_t)(s->ain[ain_num] / ((double)3300.0) * 4095) & 0xfff);
+            // printf("Writing AIN%d: %d\n", ain_num, (uint32_t)(s->ain[ain_num] / ((double)3300.0) * 4095) & 0xfff);
             adc_fifo_write(s, i, (uint32_t)(s->ain[ain_num] / ((double)3300.0) * 4095) & 0xfff);
             
             // Set interrupts if they are enabled

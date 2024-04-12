@@ -11,6 +11,10 @@ struct test_state {
 static const uint8_t pl061_id_luminary[12] =
   { 0x00, 0x00, 0x00, 0x00, 0x61, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1 };
 
+const char *GPIO_NAMED_OUTS[N_BITS] = {
+    "p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7"
+};
+
 const int8_t GPIO_ALTERNATE_FUNCTIONS[6][N_BITS][16] =
 {
     // GPIO A
@@ -213,19 +217,14 @@ static void gpio_update(GPIOState *s)
             masked_pctl = (s->pctl >> (i * 4)) & 0x0f;
             func = GPIO_ALTERNATE_FUNCTIONS[s->port][i][masked_pctl];
             if (func != F_NONE) {
-                qemu_set_irq(s->outputs[i][GPIO_ALTERNATE_FUNCTIONS[s->port][i][masked_pctl]], 1);
+                qemu_set_irq(s->outputs[i][func], 1);
             }
         } else if ((s->amsel & mask) && !masked_den) {
             // Alternate function analog
-            printf("Checking Alternate Function\n");
             func = GPIO_ALTERNATE_FUNCTIONS[s->port][i][0];
-            printf("Found func: %d\n", func);
-            qemu_irq irq = s->outputs[i][GPIO_ALTERNATE_FUNCTIONS[s->port][i][0]];
-            
-            printf("IRQ = %d %d\n", ALT_F_TO_IRQ(func, i), irq->n);
             if (func != F_NONE) {
-                printf("Writing to alt out: %d\n", GPIO_ALTERNATE_FUNCTIONS[s->port][i][0]);
-                qemu_set_irq(s->outputs[i][GPIO_ALTERNATE_FUNCTIONS[s->port][i][0]], s->levels[i]);
+                // printf("Writing to alt out: %d\n", GPIO_ALTERNATE_FUNCTIONS[s->port][i][0]);
+                qemu_set_irq(s->outputs[i][func], s->levels[i]);
             }
         }
     }
@@ -477,7 +476,7 @@ static void gpio_init(Object *obj)
     // Initialize Outputs
     int i;
     for (i = 0; i < N_BITS; i++) {
-        qdev_init_gpio_out(dev, s->outputs[i], N_ALTS_PER_LINE);
+        qdev_init_gpio_out_named(dev, s->outputs[i], GPIO_NAMED_OUTS[i], N_ALTS_PER_LINE);
     }
 }
 
