@@ -3,6 +3,76 @@
 static const uint8_t pl061_id_luminary[12] =
   { 0x00, 0x00, 0x00, 0x00, 0x61, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1 };
 
+const int8_t GPIO_ALTERNATE_FUNCTIONS[6][N_BITS][16] =
+{
+    // GPIO A
+    {
+        {F_NONE, F_U0Rx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_CAN1Rx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_U0Tx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_CAN1Tx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_SSI0Clk, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_SSI0Fss, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_SSI0Rx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_SSI0Tx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_NONE, F_I2C1SCL, F_NONE, F_M1PWM2, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_NONE, F_I2C1SDA, F_NONE, F_M1PWM3, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE}
+    },
+    // GPIO B
+    {
+        {F_USB0ID, F_U1Rx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_T2CCP0, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_USB0VBUS, F_U1Tx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_T2CCP1, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_NONE, F_I2C0SCL, F_NONE, F_NONE, F_NONE, F_T3CCP0, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_NONE, F_I2C0SDA, F_NONE, F_NONE, F_NONE, F_T3CCP1, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_AIN10, F_NONE, F_SSI2Clk, F_NONE, F_M0PWM2, F_NONE, F_NONE, F_T1CCP0, F_CAN0Rx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_AIN11, F_NONE, F_SSI2Fss, F_NONE, F_M0PWM3, F_NONE, F_NONE, F_T1CCP1, F_CAN0Tx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_SSI2Rx, F_NONE, F_M0PWM0, F_NONE, F_NONE, F_T0CCP0, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_SSI2Tx, F_NONE, F_M0PWM1, F_NONE, F_NONE, F_T0CCP1, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE}
+    },
+    // GPIO C
+    {
+        {F_NONE, F_TCK_SWCLK, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_T4CCP0, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_TMS_SWDIO, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_T4CCP1, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_TDI, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_T5CCP0, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_TDO_SWO, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_T5CCP1, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_C1_M, F_U4Rx, F_U1Rx, F_NONE, F_M0PWM6, F_NONE, F_IDX1, F_WT0CCP0, F_U1RTS, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_C1_P, F_U4Tx, F_U1Tx, F_NONE, F_M0PWM7, F_NONE, F_PhA1, F_WT0CCP1, F_U1CTS, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_C0_P, F_U3Rx, F_NONE, F_NONE, F_NONE, F_NONE, F_PhB1, F_WT1CCP0, F_USB0EPEN, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_C0_M, F_U3Tx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_WT1CCP1, F_USB0PFLT, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE}
+    },
+    // GPIO D
+    {
+        {F_AIN7, F_SSI3Clk, F_SSI1Clk, F_I2C3SCL, F_M0PWM6, F_M1PWM0, F_NONE, F_WT2CCP0, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_AIN6, F_SSI3Fss, F_SSI1Fss, F_I2C3SDA, F_M0PWM7, F_M1PWM1, F_NONE, F_WT2CCP1, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_AIN5, F_SSI3Rx, F_SSI1Rx, F_NONE, F_M0FAULT0, F_NONE, F_NONE, F_WT3CCP0, F_USB0EPEN, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_AIN4, F_SSI3Tx, F_SSI1Tx, F_NONE, F_NONE, F_NONE, F_IDX0, F_WT3CCP1, F_USB0PFLT, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_USB0DM, F_U6Rx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_WT4CCP0, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_USB0DP, F_U6Tx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_WT4CCP1, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_U2Rx, F_NONE, F_NONE, F_M0FAULT0, F_NONE, F_PhA0, F_WT5CCP0, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_U2Tx, F_NONE, F_NONE, F_NONE, F_NONE, F_PhB0, F_WT5CCP1, F_NMI, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+    },
+    // GPIO E
+    {
+        {F_AIN3, F_U7Rx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_AIN2, F_U7Tx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_AIN1, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_AIN0, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_AIN9, F_U5Rx, F_NONE, F_I2C2SCL, F_M0PWM4, F_M1PWM2, F_NONE, F_NONE, F_CAN0Rx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_AIN8, F_U5Tx, F_NONE, F_I2C2SDA, F_M0PWM5, F_M1PWM3, F_NONE, F_NONE, F_CAN0Tx, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+    },
+    // GPIO F
+    {
+        {F_NONE, F_U1RTS, F_SSI1Rx, F_CAN0Rx, F_NONE, F_M1PWM4, F_PhA0, F_T0CCP0, F_NMI, F_C0o, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_U1CTS, F_SSI1Tx, F_NONE, F_NONE, F_M1PWM5, F_PhB0, F_T0CCP1, F_NONE, F_C1o, F_NONE, F_NONE, F_NONE, F_NONE, F_TRD1, F_NONE},
+        {F_NONE, F_NONE, F_SSI1Clk, F_NONE, F_M0FAULT0, F_M1PWM6, F_NONE, F_T1CCP0, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_TRD0, F_NONE},
+        {F_NONE, F_NONE, F_SSI1Fss, F_CAN0Tx, F_NONE, F_M1PWM7, F_NONE, F_T1CCP1, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_TRCLK, F_NONE},
+        {F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_M1FAULT0, F_IDX0, F_T2CCP0, F_USB0EPEN, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE}
+    }
+};
+
 static const VMStateDescription vmstate_gpio = {
     .name = TYPE_TM4_GPIO,
     .version_id = 1,
@@ -122,6 +192,32 @@ static void gpio_update(GPIOState *s)
     s->ris |= iev_edges & s->is;
     
     qemu_set_irq(s->nvic_irq, (s->ris & s->im) != 0);
+
+    // GPIO Alternate functions
+    int8_t func;
+    uint8_t masked_pctl;
+    uint8_t masked_den;
+    for (i = 0; i < N_BITS; i++) {
+        mask = 1 << i;
+        masked_den = s->den & mask;
+        if ((s->afsel & mask) && masked_den) {
+            // Alternate function analog
+            masked_pctl = (s->pctl >> (i * 4)) & 0x0f;
+            func = GPIO_ALTERNATE_FUNCTIONS[s->port][i][masked_pctl];
+            if (func != F_NONE) {
+                qemu_set_irq(s->alt_out[GPIO_ALTERNATE_FUNCTIONS[s->port][i][masked_pctl]], 1);
+            }
+        } else if ((s->amsel & mask) && !masked_den) {
+            // Alternate function analog
+            printf("Checking Alternate Function\n");
+            func = GPIO_ALTERNATE_FUNCTIONS[s->port][i][0];
+            printf("Found func: %d\n", func);
+            if (func != F_NONE) {
+                printf("Writing to alt out: %d\n", GPIO_ALTERNATE_FUNCTIONS[s->port][i][0]);
+                qemu_set_irq(s->alt_out[GPIO_ALTERNATE_FUNCTIONS[s->port][i][0]], s->levels[i]);
+            }
+        }
+    }
 }
 
 static uint64_t gpio_read(void *opaque, hwaddr offset,
@@ -325,11 +421,22 @@ static void gpio_set_irq(void *opaque, int irq, int level)
     uint8_t mask = 1 << irq;
     // If pin #irq is an input
     if (!(s->dir & mask)) {
-        // Clear existing data for the pin
-        s->data &= ~mask;
-        // If the irq is 1, set the data bit
-        if (level) {
-            s->data |= mask;
+        if (s->den & mask) {
+            // Digital input
+            // Clear existing data for the pin
+            s->data &= ~mask;
+            // If the irq is 1, set the data bit
+            if (level) {
+                s->levels[irq] = 3300;
+                s->data |= mask;
+            } else {
+                s->levels[irq] = 0;
+            }
+        } else {
+            // Analog input
+            // Clear existing data for the pin
+            s->data &= ~mask;
+            s->levels[irq] = level;
         }
         gpio_update(s);
     }
@@ -354,8 +461,13 @@ static void gpio_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->nvic_irq);
 
+    // Initialize data inputs
     qdev_init_gpio_in(dev, gpio_set_irq, N_BITS);
+    // Initialize data outputs
     qdev_init_gpio_out(dev, s->out, N_BITS);
+    // Initialize alt function outputs
+    // TODO: this is probably inefficient since each gpio a-f can't have every alt function.
+    qdev_init_gpio_out(dev, s->alt_out, N_ALT_F);
 }
 
 static void gpio_realize(DeviceState *dev, Error **errp)
@@ -380,6 +492,7 @@ static Property gpio_props[] =
 {
     DEFINE_PROP_UINT32("pur", GPIOState, pur, 0xff),
     DEFINE_PROP_UINT32("pdr", GPIOState, pdr, 0x0),
+    DEFINE_PROP_UINT8("port", GPIOState, port, -1),
     DEFINE_PROP_END_OF_LIST()
 };
 

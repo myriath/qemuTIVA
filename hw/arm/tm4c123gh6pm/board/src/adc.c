@@ -368,7 +368,6 @@ static const VMStateDescription vmstate_adc = {
         VMSTATE_UINT32(dccmp[7], ADCState),
         VMSTATE_UINT32(pc, ADCState),
         VMSTATE_UINT32(cc, ADCState),
-        VMSTATE_UINT32_ARRAY(ain, ADCState, 12),
         VMSTATE_END_OF_LIST()
     }
 };

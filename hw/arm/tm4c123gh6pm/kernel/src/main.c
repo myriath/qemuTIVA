@@ -31,6 +31,14 @@ int main()
     IntRegister(INT_ADC0SS0, handle_adc);
     IntRegister(3, hard_fault);
     
+    GPIO_PORTB_DEN_R = 0;
+    GPIO_PORTD_DEN_R = 0;
+    GPIO_PORTE_DEN_R = 0;
+
+    GPIO_PORTB_AMSEL_R = 0xff;
+    GPIO_PORTD_AMSEL_R = 0xff;
+    GPIO_PORTE_AMSEL_R = 0xff;
+
     ADC1_SSMUX0_R = 0x00001234;
     ADC1_SSCTL0_R = 0x00006000;
     ADC1_IM_R = 1;
