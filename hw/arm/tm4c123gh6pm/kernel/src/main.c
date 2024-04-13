@@ -2,11 +2,21 @@
 
 int a = 0;
 
-void handle_adc(void)
+void handle_adc0(void)
 {
     ADC0_ISC_R |= 1;
     while (~ADC0_SSFSTAT0_R & 0x100) {
-        a = ADC0_SSFIFO0_R;
+        GPIO_PORTC_DATA_R = ADC0_SSFIFO0_R >> 8;
+        GPIO_PORTC_DATA_R = ADC0_SSFIFO0_R & 0xff;
+    }
+}
+
+void handle_adc1(void)
+{
+    ADC1_ISC_R |= 1;
+    while (~ADC1_SSFSTAT0_R & 0x100) {
+        GPIO_PORTA_DATA_R = ADC1_SSFIFO0_R >> 8;
+        GPIO_PORTA_DATA_R = ADC1_SSFIFO0_R & 0xff;
     }
 }
 
@@ -26,14 +36,32 @@ int main()
 {
     IntMasterEnable();
     IntEnable(INT_ADC1SS0);
-    IntRegister(INT_ADC1SS0, handle_adc);
+    IntRegister(INT_ADC1SS0, handle_adc1);
     IntEnable(INT_ADC0SS0);
-    IntRegister(INT_ADC0SS0, handle_adc);
+    IntRegister(INT_ADC0SS0, handle_adc0);
     IntRegister(3, hard_fault);
     
     GPIO_PORTB_DEN_R = 0;
     GPIO_PORTD_DEN_R = 0;
     GPIO_PORTE_DEN_R = 0;
+
+    GPIO_PORTC_DEN_R = 0xff;
+    GPIO_PORTC_DIR_R = 0xff;
+    GPIO_PORTA_DEN_R = 0xff;
+    GPIO_PORTA_DIR_R = 0xff;
+    // GPIO_PORTA_DATA_R = 'h';
+    // GPIO_PORTA_DATA_R = 'e';
+    // GPIO_PORTA_DATA_R = 'l';
+    // GPIO_PORTA_DATA_R = 'l';
+    // GPIO_PORTA_DATA_R = 'o';
+    // GPIO_PORTA_DATA_R = ' ';
+    // GPIO_PORTA_DATA_R = 'w';
+    // GPIO_PORTA_DATA_R = 'o';
+    // GPIO_PORTA_DATA_R = 'r';
+    // GPIO_PORTA_DATA_R = 'l';
+    // GPIO_PORTA_DATA_R = 'd';
+    // GPIO_PORTA_DATA_R = '!';
+    // GPIO_PORTA_DATA_R = '\n';
 
     GPIO_PORTB_AMSEL_R = 0xff;
     GPIO_PORTD_AMSEL_R = 0xff;
@@ -72,14 +100,10 @@ int main()
     TEST_ANALOG_VOLTAGE = 2515;
 
     ADC1_PSSI_R = 1;
-    ADC0_PSSI_R = 1;
+    // ADC0_PSSI_R = 1;
 
-    int i;
-    int j = 0;
-    for (i = 0; i < 1000; i++) {
-        // busy loop to allow adc interrupt
-        j += 2;
-    }
+    while (~ADC1_SSFSTAT0_R & 0x100);
+    while (~ADC0_SSFSTAT0_R & 0x100);
 
     // Force hard fault for testing interrupt
     __asm__("b 0x30000000");

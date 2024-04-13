@@ -157,6 +157,8 @@ static void gpio_update(GPIOState *s)
     delta = s->old_out_data ^ out;
     if (delta) {
         s->old_out_data = out;
+        // Output for grader
+        printf("[GPIO %c] %.2X\n", s->port + 'A', out);
         for (i = 0; i < N_BITS; i++) {
             mask = 1 << i;
             if (delta & mask) {
