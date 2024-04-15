@@ -895,9 +895,18 @@ static void tm4c123gh6pm_init(MachineState *ms)
 
     // GPIO
     for (i = 0; i < 6; i++) {
-        gpio_dev[i] = sysbus_create_simple(TYPE_TM4_GPIO, gpio_addr[i],
-                                            qdev_get_gpio_in(nvic,
-                                                            gpio_irq[i]));
+        // Needed to set a property before realization, this
+        // is just the internals of sysbus_create_simple()
+        DeviceState *gpio_device = qdev_new(TYPE_TM4_GPIO);
+        gpio_dev[i] = gpio_device;
+        SysBusDevice *gpio_sysbus = SYS_BUS_DEVICE(gpio_device);
+
+        qdev_prop_set_uint8(gpio_device, "port", i);
+        sysbus_realize_and_unref(gpio_sysbus, &error_fatal);
+
+        sysbus_mmio_map(gpio_sysbus, 0, gpio_addr[i]);
+        sysbus_connect_irq(gpio_sysbus, 0, qdev_get_gpio_in(nvic, gpio_irq[i]));
+        
         for (j = 0; j < 8; j++) {
             // GPIO IN are the irqs of data coming IN to the system via GPIO
             gpio_in[i][j] = qdev_get_gpio_in(gpio_dev[i], j);
@@ -905,13 +914,6 @@ static void tm4c123gh6pm_init(MachineState *ms)
             gpio_out[i][j] = NULL;
         }
     }
-
-    qemu_irq *gpio_ain[] = {
-        &gpio_in[GPIO_E][3], &gpio_in[GPIO_E][2], &gpio_in[GPIO_E][1],
-        &gpio_in[GPIO_E][0], &gpio_in[GPIO_D][3], &gpio_in[GPIO_D][2],
-        &gpio_in[GPIO_D][1], &gpio_in[GPIO_D][0], &gpio_in[GPIO_E][5],
-        &gpio_in[GPIO_E][4], &gpio_in[GPIO_B][5], &gpio_in[GPIO_B][4]
-    };
 
     // ADC
     DeviceState *adc0 = sysbus_create_varargs(TYPE_TM4_ADC, adc_addr[0],
@@ -931,20 +933,37 @@ static void tm4c123gh6pm_init(MachineState *ms)
                                 qdev_get_gpio_in(nvic, adc_irq[1][3]),
                                 NULL);
     
+    uint8_t gpio_ain_ports[12] = {
+        GPIO_E, GPIO_E, GPIO_E, GPIO_E, 
+        GPIO_D, GPIO_D, GPIO_D, GPIO_D, 
+        GPIO_E, GPIO_E, GPIO_B, GPIO_B
+    };
+
+    uint8_t gpio_ain_pins[] = {
+        3, 2, 1, 0,
+        3, 2, 1, 0,
+        5, 4, 5, 4
+    };
+
     // Analog test input device
     dev = sysbus_create_varargs(TYPE_TEST_ANALOG, 0x40002000, NULL);
     for (i = 0; i < 12; i++) {
-        // Splitter to connect output of analog to each ain and adc
+        uint8_t port = gpio_ain_ports[i];
+        uint8_t pin = gpio_ain_pins[i];
+        // Connect analog test device to ains
+        qdev_connect_gpio_out(dev, i, gpio_in[port][pin]);
+
+        // Connect gpio to adcs
         DeviceState *splitter = qdev_new(TYPE_SPLIT_IRQ);
         object_property_add_child(OBJECT(ms), "splitter[*]", OBJECT(splitter));
-        qdev_prop_set_uint32(splitter, "num-lines", 3);
+        qdev_prop_set_uint32(splitter, "num-lines", 2);
         qdev_realize_and_unref(splitter, NULL, &error_fatal);
 
-        qdev_connect_gpio_out(splitter, 0, *gpio_ain[i]);
-        qdev_connect_gpio_out(splitter, 1, qdev_get_gpio_in(adc0, i));
-        qdev_connect_gpio_out(splitter, 2, qdev_get_gpio_in(adc1, i));
+        qdev_connect_gpio_out(splitter, 0, qdev_get_gpio_in(adc0, i));
+        qdev_connect_gpio_out(splitter, 1, qdev_get_gpio_in(adc1, i));
 
-        qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(splitter, 0));
+        // uint8_t port = gpio_ain_ports[i];
+        qdev_connect_gpio_out_named(gpio_dev[port], GPIO_NAMED_OUTS[pin], F_AIN, qdev_get_gpio_in(splitter, 0));
     }
 
     // // Timers

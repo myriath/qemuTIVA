@@ -6,6 +6,8 @@
 
 #include "tm4c123gh6pm.h"
 
+#define NVIC_MIN_INTERRUPT_VECTOR 16
+
 /**
  * Enables interrupts for the processor via the CSPIE i instruction
  * 

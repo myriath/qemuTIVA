@@ -65,11 +65,6 @@ static void analog_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 
     qdev_init_gpio_out(dev, s->out, 12);
-    // int i;
-    // for (i = 0; i < 12; i++) {
-    //     // sysbus_init_irq(sbd, &s->out[i]);
-    //     qdev_init_gpio_out(dev, &s->out[i], i);
-    // }
 }
 
 static void analog_class_init(ObjectClass *klass, void *data)

@@ -26,7 +26,7 @@
 #define VECTOR_COUNT 155
 #define NUM_INTERRUPTS 138
 
-#define HWREG(adr) (*((volatile uint32_t *)adr))
+#define HWREG(adr) (*((volatile uint32_t *)(adr)))
 
 //*****************************************************************************
 //
@@ -310,6 +310,21 @@ IntDefaultHandler(void)
     return;
 }
 
+
+// Helper methods for calculating register / field offsets
+static int calculate_register(int interrupt)
+{
+    // Interrupt / 32 (gives register offset)
+    // Offset * 4 (Word align)
+    return (interrupt >> 5) << 2;
+}
+
+static int calculate_field(int interrupt)
+{
+    // Returns Interrupt % 32
+    return interrupt & 0x1f;
+}
+
 // Executes the CPSIE instruction to enable interrupts.
 uint32_t __attribute__((naked)) CPU_CPSIE(void)
 {
@@ -454,14 +469,11 @@ void IntEnable(uint32_t interrupt)
             NVIC_ST_CTRL_R |= NVIC_ST_CTRL_INTEN;
             break;
         default:
-            if (interrupt < 16) return;
+            if (interrupt < NVIC_MIN_INTERRUPT_VECTOR) return;
             // Vector Numbers in NVIC are offset 16 from the actual vector table
-            interrupt -= 16;
+            interrupt -= NVIC_MIN_INTERRUPT_VECTOR;
             // en# register |= mask
-            uint32_t reg = (interrupt >> 5) << 2;
-            uint32_t field = interrupt & 0x1f;
-
-            HWREG(NVIC_EN_BASE + reg) |= 1 << field;
+            HWREG(NVIC_EN_BASE + calculate_register(interrupt)) |= 1 << calculate_field(interrupt);
     }
 }
 
@@ -486,11 +498,11 @@ void IntDisable(uint32_t interrupt)
             NVIC_ST_CTRL_R &= ~NVIC_ST_CTRL_INTEN;
             break;
         default:
-            if (interrupt < 16) return;
+            if (interrupt < NVIC_MIN_INTERRUPT_VECTOR) return;
             // Vector Numbers in NVIC are offset 16 from the actual vector table
-            interrupt -= 16;
+            interrupt -= NVIC_MIN_INTERRUPT_VECTOR;
             // en# register |= mask
-            uint32_t reg = (interrupt >> 5) << 2;
+            uint32_t reg = (interrupt >> 6) << 2;
             uint32_t field = interrupt & 0x1f;
 
             HWREG(NVIC_DIS_BASE + reg) |= 1 << field;
@@ -512,14 +524,11 @@ uint32_t IntIsEnabled(uint32_t interrupt)
         case 14:    // SysTick Fault
             return NVIC_ST_CTRL_R & NVIC_ST_CTRL_INTEN;
         default:
-            if (interrupt < 16) return 0;
+            if (interrupt < NVIC_MIN_INTERRUPT_VECTOR) return 0;
             // NVIC interrupts are offset 16
-            interrupt -= 16;
+            interrupt -= NVIC_MIN_INTERRUPT_VECTOR;
             // each register holds 32 interrupts, each register offset is 4: 
-            // interrupt / 32 * 4 = interrupt / 8 = interrupt >> 3
-            uint32_t reg = (interrupt >> 5) << 2;
-            uint32_t field = interrupt & 0x1f;
-            return HWREG(NVIC_EN_BASE + reg) & (1 << field);
+            return HWREG(NVIC_EN_BASE + calculate_register(interrupt)) & (1 << calculate_field(interrupt));
     }
 }
 
@@ -541,14 +550,11 @@ void IntPendSet(uint32_t interrupt)
             NVIC_INT_CTRL_R |= NVIC_INT_CTRL_PENDSTSET;
             break;
         default:
-            if (interrupt < 16) return;
+            if (interrupt < NVIC_MIN_INTERRUPT_VECTOR) return;
             // Vector Numbers in NVIC are offset 16 from the actual vector table
-            interrupt -= 16;
+            interrupt -= NVIC_MIN_INTERRUPT_VECTOR;
             // en# register |= mask
-            uint32_t reg = (interrupt >> 5) << 2;
-            uint32_t field = interrupt & 0x1f;
-
-            HWREG(NVIC_PEND_BASE + reg) |= 1 << field;
+            HWREG(NVIC_PEND_BASE + calculate_register(interrupt)) |= 1 << calculate_field(interrupt);
     }
 }
 
@@ -567,14 +573,11 @@ void IntPendClear(uint32_t interrupt)
             NVIC_INT_CTRL_R |= NVIC_INT_CTRL_PENDSTCLR;
             break;
         default:
-            if (interrupt < 16) return;
+            if (interrupt < NVIC_MIN_INTERRUPT_VECTOR) return;
             // Vector Numbers in NVIC are offset 16 from the actual vector table
-            interrupt -= 16;
+            interrupt -= NVIC_MIN_INTERRUPT_VECTOR;
             // en# register |= mask
-            uint32_t reg = (interrupt >> 5) << 2;
-            uint32_t field = interrupt & 0x1f;
-
-            HWREG(NVIC_UNPEND_BASE + reg) |= 1 << field;
+            HWREG(NVIC_UNPEND_BASE + calculate_register(interrupt)) |= 1 << calculate_field(interrupt);
     }
 }
 
@@ -602,7 +605,7 @@ uint32_t IntPriorityMaskGet(void)
 void IntTrigger(uint32_t interrupt)
 {
     // Ensure valid interrupt
-    if (interrupt < 16 || interrupt >= VECTOR_COUNT) return;
+    if (interrupt < NVIC_MIN_INTERRUPT_VECTOR || interrupt >= VECTOR_COUNT) return;
     // Trigger the interrupt
     NVIC_SW_TRIG_R = interrupt;
 }
