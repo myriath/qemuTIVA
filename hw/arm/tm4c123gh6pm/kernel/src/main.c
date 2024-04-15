@@ -4,19 +4,23 @@ int a = 0;
 
 void handle_adc0(void)
 {
+    int adc;
     ADC0_ISC_R |= 1;
     while (~ADC0_SSFSTAT0_R & 0x100) {
-        GPIO_PORTC_DATA_R = ADC0_SSFIFO0_R >> 8;
-        GPIO_PORTC_DATA_R = ADC0_SSFIFO0_R & 0xff;
+        adc = ADC0_SSFIFO0_R;
+        GPIO_PORTC_DATA_R = adc >> 8;
+        GPIO_PORTC_DATA_R = adc & 0xff;
     }
 }
 
 void handle_adc1(void)
 {
+    int adc;
     ADC1_ISC_R |= 1;
     while (~ADC1_SSFSTAT0_R & 0x100) {
-        GPIO_PORTA_DATA_R = ADC1_SSFIFO0_R >> 8;
-        GPIO_PORTA_DATA_R = ADC1_SSFIFO0_R & 0xff;
+        adc = ADC1_SSFIFO0_R;
+        GPIO_PORTA_DATA_R = adc >> 8;
+        GPIO_PORTA_DATA_R = adc & 0xff;
     }
 }
 
@@ -49,19 +53,20 @@ int main()
     GPIO_PORTC_DIR_R = 0xff;
     GPIO_PORTA_DEN_R = 0xff;
     GPIO_PORTA_DIR_R = 0xff;
-    // GPIO_PORTA_DATA_R = 'h';
-    // GPIO_PORTA_DATA_R = 'e';
-    // GPIO_PORTA_DATA_R = 'l';
-    // GPIO_PORTA_DATA_R = 'l';
-    // GPIO_PORTA_DATA_R = 'o';
-    // GPIO_PORTA_DATA_R = ' ';
-    // GPIO_PORTA_DATA_R = 'w';
-    // GPIO_PORTA_DATA_R = 'o';
-    // GPIO_PORTA_DATA_R = 'r';
-    // GPIO_PORTA_DATA_R = 'l';
-    // GPIO_PORTA_DATA_R = 'd';
-    // GPIO_PORTA_DATA_R = '!';
-    // GPIO_PORTA_DATA_R = '\n';
+    GPIO_PORTA_DATA_R = 'h';
+    GPIO_PORTA_DATA_R = 'e';
+    GPIO_PORTA_DATA_R = 'l';
+    // Second l not printed because GPIO only prints when something is changed!
+    GPIO_PORTA_DATA_R = 'l';
+    GPIO_PORTA_DATA_R = 'o';
+    GPIO_PORTA_DATA_R = ' ';
+    GPIO_PORTA_DATA_R = 'w';
+    GPIO_PORTA_DATA_R = 'o';
+    GPIO_PORTA_DATA_R = 'r';
+    GPIO_PORTA_DATA_R = 'l';
+    GPIO_PORTA_DATA_R = 'd';
+    GPIO_PORTA_DATA_R = '!';
+    GPIO_PORTA_DATA_R = '\n';
 
     GPIO_PORTB_AMSEL_R = 0xff;
     GPIO_PORTD_AMSEL_R = 0xff;
@@ -100,7 +105,7 @@ int main()
     TEST_ANALOG_VOLTAGE = 2515;
 
     ADC1_PSSI_R = 1;
-    // ADC0_PSSI_R = 1;
+    ADC0_PSSI_R = 1;
 
     while (~ADC1_SSFSTAT0_R & 0x100);
     while (~ADC0_SSFSTAT0_R & 0x100);
