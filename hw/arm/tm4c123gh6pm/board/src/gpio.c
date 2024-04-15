@@ -157,8 +157,6 @@ static void gpio_update(GPIOState *s)
     delta = s->old_out_data ^ out;
     if (delta) {
         s->old_out_data = out;
-        // Output for grader
-        printf("[GPIO %c] %.2X\n", s->port + 'A', out);
         for (i = 0; i < N_BITS; i++) {
             mask = 1 << i;
             if (delta & mask) {
@@ -299,84 +297,118 @@ static void gpio_write(void *opaque, hwaddr offset,
     uint8_t mask;
     uint8_t value8 = value & 0xff;
 
+    uint32_t output = value;
+    const char *reg = "BAD OFFSET";
+
     switch (offset) {
     case 0x000 ... 0x3ff:
+        reg = "DATA";
         mask = (offset >> 2) & s->dir;
         s->data = (s->data & ~mask) | (value & mask);
+        output = value & mask;
         break;
     case 0x400:
+        reg = "DIR";
         s->dir = value8;
         break;
     case 0x404:
+        reg = "IS";
         s->is = value8;
         break;
     case 0x408:
+        reg = "IBE";
         s->ibe = value8;
         break;
     case 0x40c:
+        reg = "IEV";
         s->iev = value8;
         break;
     case 0x410:
+        reg = "IM";
         s->im = value8;
         break;
     case 0x41c:
+        reg = "ICR";
         s->ris &= ~value;
         break;
     case 0x420:
+        reg = "AFSEL";
         mask = s->cr;
         s->afsel = (s->afsel & ~mask) | (value & mask);
+        output = s->afsel;
         break;
     case 0x500:
+        reg = "DR2R";
         s->dr2r = value8;
         break;
     case 0x504:
+        reg = "DR4R";
         s->dr4r = value8;
         break;
     case 0x508:
+        reg = "DR8R";
         s->dr8r = value8;
         break;
     case 0x50c:
+        reg = "ODR";
         s->odr = value8;
         break;
     case 0x510:
+        reg = "PUR";
         mask = s->cr;
         s->pur = (s->pur & ~mask) | (value & mask);
+        output = s->pur;
         break;
     case 0x514:
+        reg = "PDR";
         mask = s->cr;
         s->pdr = (s->pdr & ~mask) | (value & mask);
+        output = s->pdr;
         break;
     case  0x518:
+        reg = "SLR";
         s->slr = value8;
         break;
     case 0x51c:
+        reg = "DEN";
         mask = s->cr;
         s->den = (s->den & ~mask) | (value & mask);
+        output = s->den;
         break;
     case 0x520:
+        reg = "LOCK";
         // Locked unless you write 0x4c4f434b as per datasheet
         s->lock = (value != 0x4c4f434b);
+        output = s->lock;
         break;
     case 0x524:
+        reg = "CR";
+        output = 0;
         if (s->lock) break;
         s->cr = value8;
+        output = value8;
         break;
     case 0x528:
+        reg = "AMSEL";
         s->amsel = value8;
         break;
     case 0x52c:
+        reg = "PCTL";
         s->pctl = value;
         break;
     case 0x530:
+        reg = "ADCCTL";
         s->adcctl = value8;
         break;
     case 0x534:
+        reg = "DMACTL";
         s->dmactl = value8;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "gpio_write: Bad offset %x\n", (int)offset);
     }
 
+    printf("[GPIO %c %s] 0x%.2X\n", s->port + 'A', reg, output);
     gpio_update(s);
 }
 
