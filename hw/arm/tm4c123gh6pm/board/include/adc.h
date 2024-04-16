@@ -2,6 +2,7 @@
 #define TM4_ADC_H_
 
 #include "qemu/osdep.h"
+#include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
 #include "qemu/log.h"
@@ -17,6 +18,9 @@
 
 #define TM4_ADC_FIFO_EMPTY    0x0100
 #define TM4_ADC_FIFO_FULL     0x1000
+
+#define COUNT_ADC 2
+#define COUNT_AIN 12
 
 // Define device registers
 struct ADCState {
@@ -54,6 +58,8 @@ struct ADCState {
     qemu_irq ain_irq[12];
     // Each ain value is the voltage of the AIN in milli-volts
     uint32_t ain[12];
+
+    uint8_t adc;
 };
 
 #define TYPE_TM4_ADC "tm4-adc"

@@ -201,33 +201,48 @@ static uint64_t adc_read(void *opaque, hwaddr offset,
     }
 }
 
+#define BUF_SIZE 20
+
 // Writes an offset to the ADC's iomem
 static void adc_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     ADCState *s = opaque;
 
+    uint32_t output = value;
+    const char *reg = "BAD OFFSET";
+    char buf[BUF_SIZE];
+
     if (offset >= 0x40 && offset < 0xc0) {
         int n;
         n = (offset - 0x40) >> 5;
         switch (offset & 0x1f) {
         case 0x00: /* SSMUX */
+            reg = "SSMUX";
             s->ssmux[n] = value;
-            return;
+            break;
         case 0x04: /* SSCTL */
+            reg = "SSCTL";
             s->ssctl[n] = value;
-            return;
+            break;
         case 0x10: /* SSOP */
+            reg = "SSOP";
             qemu_log_mask(LOG_UNIMP, "ADC: SSOP unimplemented\n");
             s->ssop[n] = value;
-            return;
+            break;
         case 0x14: /* SSDC */
+            reg = "SSDC";
             qemu_log_mask(LOG_UNIMP, "ADC: SSDC unimplemented\n");
             s->ssdc[n] = value;
-            return;
-        default:
             break;
+        default:
+            n = -1;
         }
+        if (n != -1) {
+            snprintf(buf, BUF_SIZE, "%s%d", reg, n);
+            reg = buf;
+        }
+        goto print_ret;
     }
     if (offset >= 0xe00 && offset <= 0xe1c) {
         qemu_log_mask(LOG_UNIMP, "ADC: dcctl unimplemented\n");
@@ -241,33 +256,43 @@ static void adc_write(void *opaque, hwaddr offset,
     }
     switch (offset) {
     case 0x00: /* ACTSS */
+        reg = "ACTSS";
         s->actss = value & 0xf;
         break;
     case 0x08: /* IM */
+        reg = "ACTSS";
         s->im = value;
         break;
     case 0x0c: /* ISC */
+        reg = "ACTSS";
         s->ris &= ~value;
         break;
     case 0x10: /* OSTAT */
+        reg = "ACTSS";
         s->ostat &= ~value;
         break;
     case 0x14: /* EMUX */
+        reg = "ACTSS";
         s->emux = value;
         break;
     case 0x18: /* USTAT */
+        reg = "ACTSS";
         s->ustat &= ~value;
         break;
     case 0x1c:
+        reg = "ACTSS";
         s->tssel = value;
         break;
     case 0x20: /* SSPRI */
+        reg = "ACTSS";
         s->sspri = value;
         break;
     case 0x24:
+        reg = "ACTSS";
         s->spc = value;
         break;
     case 0x28: /* PSSI */
+        reg = "ACTSS";
         s->pssi = value;
         adc_pssi_trigger(s);
         break;
@@ -299,6 +324,8 @@ static void adc_write(void *opaque, hwaddr offset,
                       "ADC: write at bad offset 0x%x\n", (int)offset);
     }
     adc_update_nvic(s);
+    print_ret:
+    printf("[ADC%d %s] 0x%.8X\n", s->adc, reg, output);
 }
 
 // ADC iomem read / write operations
@@ -393,11 +420,19 @@ static void adc_init(Object *obj)
     qdev_init_gpio_in(dev, adc_ain_trigger, 12);
 }
 
+static Property adc_properties[] = 
+{
+    DEFINE_PROP_UINT8("adc", ADCState, adc, 0),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 // Initialize ADC class for QEMU
 static void adc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
+
+    device_class_set_props(dc, adc_properties);
 
     rc->phases.hold = adc_reset_hold;
     dc->vmsd = &vmstate_adc;
