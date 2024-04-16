@@ -1,12 +1,20 @@
 #include "hw/arm/tm4c123gh6pm/board/include/gpio.h"
 
-struct test_state {
-    Object parent_obj;
+DeviceState *gpio_create(hwaddr addr, qemu_irq nvic_irq, uint8_t port)
+{
+    // Needed to set a property before realization, this
+    // is just the internals of sysbus_create_simple()
+    DeviceState *dev = qdev_new(TYPE_TM4_GPIO);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
-    qemu_irq_handler handler;
-    void *opaque;
-    int n;
-};
+    qdev_prop_set_uint8(dev, "port", port);
+    sysbus_realize_and_unref(sbd, &error_fatal);
+
+    sysbus_mmio_map(sbd, 0, addr);
+    sysbus_connect_irq(sbd, 0, nvic_irq);
+        
+    return dev;
+}
 
 static const uint8_t pl061_id_luminary[12] =
   { 0x00, 0x00, 0x00, 0x00, 0x61, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1 };

@@ -223,4 +223,6 @@ struct GPIOState {
 #define TYPE_TM4_GPIO "tm4-gpio"
 OBJECT_DECLARE_SIMPLE_TYPE(GPIOState, TM4_GPIO)
 
+DeviceState *gpio_create(hwaddr addr, qemu_irq nvic_irq, uint8_t port);
+
 #endif

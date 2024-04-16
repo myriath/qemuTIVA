@@ -1,5 +1,22 @@
 #include "hw/arm/tm4c123gh6pm/board/include/adc.h"
 
+DeviceState *adc_create(hwaddr addr, qemu_irq *nvic_irq, uint8_t adc)
+{
+    // Also the internals of sysbus_create_varargs because we need the adc prop set
+    DeviceState *dev = qdev_new(TYPE_TM4_ADC);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+     
+    qdev_prop_set_uint8(dev, "adc", adc);
+    sysbus_realize_and_unref(sbd, &error_fatal);
+
+    sysbus_mmio_map(sbd, 0, addr);
+    for (int j = 0; j < COUNT_SS; j++) {
+        sysbus_connect_irq(sbd, j, nvic_irq[j]);
+    }
+
+    return dev;
+}
+
 // Read a value from the SSFIFO, also updates underflow / tail / head pointers
 static uint32_t adc_fifo_read(ADCState *s, int ss)
 {

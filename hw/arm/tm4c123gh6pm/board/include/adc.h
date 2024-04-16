@@ -2,6 +2,7 @@
 #define TM4_ADC_H_
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
@@ -21,6 +22,7 @@
 
 #define COUNT_ADC 2
 #define COUNT_AIN 12
+#define COUNT_SS 4
 
 // Define device registers
 struct ADCState {
@@ -66,5 +68,7 @@ struct ADCState {
 
 typedef struct ADCState ADCState;
 DECLARE_INSTANCE_CHECKER(ADCState, TM4_ADC, TYPE_TM4_ADC)
+
+DeviceState *adc_create(hwaddr addr, qemu_irq *nvic_irq, uint8_t adc);
 
 #endif

@@ -907,17 +907,7 @@ static void tm4c123gh6pm_init(MachineState *ms)
 
     // GPIO
     for (i = 0; i < 6; i++) {
-        // Needed to set a property before realization, this
-        // is just the internals of sysbus_create_simple()
-        DeviceState *gpio_device = qdev_new(TYPE_TM4_GPIO);
-        gpio_dev[i] = gpio_device;
-        SysBusDevice *gpio_sysbus = SYS_BUS_DEVICE(gpio_device);
-
-        qdev_prop_set_uint8(gpio_device, "port", i);
-        sysbus_realize_and_unref(gpio_sysbus, &error_fatal);
-
-        sysbus_mmio_map(gpio_sysbus, 0, gpio_addr[i]);
-        sysbus_connect_irq(gpio_sysbus, 0, qdev_get_gpio_in(nvic, gpio_irq[i]));
+        gpio_dev[i] = gpio_create(gpio_addr[i], qdev_get_gpio_in(nvic, gpio_irq[i]), i);
         
         for (j = 0; j < 8; j++) {
             // GPIO IN are the irqs of data coming IN to the system via GPIO
@@ -931,18 +921,11 @@ static void tm4c123gh6pm_init(MachineState *ms)
 
     // ADC
     for (i = 0; i < COUNT_ADC; i++) {
-        // Also the internals of sysbus_create_varargs because we need the adc prop set
-        adc[i] = qdev_new(TYPE_TM4_ADC);
-        SysBusDevice *sbd = SYS_BUS_DEVICE(adc[i]);
-        
-        printf("Setting prop\n");
-        qdev_prop_set_uint8(adc[i], "adc", i);
-        sysbus_realize_and_unref(sbd, &error_fatal);
-
-        sysbus_mmio_map(sbd, 0, adc_addr[i]);
-        for (j = 0; j < 4; j++) {
-            sysbus_connect_irq(sbd, j, qdev_get_gpio_in(nvic, adc_irq[i][j]));
+        qemu_irq adc_nvic[COUNT_SS];
+        for (j = 0; j < COUNT_SS; j++) {
+            adc_nvic[j] = qdev_get_gpio_in(nvic, adc_irq[i][j]);
         }
+        adc[i] = adc_create(adc_addr[i], adc_nvic, i);
     }
 
     // Connect GPIO to ADC
