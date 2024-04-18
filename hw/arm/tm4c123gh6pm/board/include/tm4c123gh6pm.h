@@ -1,8 +1,10 @@
 #ifndef TM4_H_
 #define TM4_H_
 
+#include "joiner.h"
 #include "gpio.h"
 #include "adc.h"
+#include "uart.h"
 #include "test_analog.h"
 // #include "i2c.h"
 

@@ -605,7 +605,6 @@ static void tm4c123gh6pm_sys_reset_enter(Object *obj, ResetType type)
 {
     ssys_state *s = TM4_SYS(obj);
 
-    // TODO
     s->pborctl = 0x7ffd;
     s->rcc = 0x078e3ad1;
     s->rcc2 = 0x07c06810;
@@ -703,11 +702,11 @@ static void tm4c123gh6pm_sys_instance_init(Object *obj)
 
 static void tm4c123gh6pm_init(MachineState *ms)
 {
-    static const uint32_t uart_addr[8] = {
+    static const uint32_t uart_addr[COUNT_UART] = {
         0x4000c000, 0x4000d000, 0x4000e000, 0x4000f000,
         0x40010000, 0x40011000, 0x40012000, 0x40013000
     };
-    static const int uart_irq[8] = {5, 6, 33, 59, 60, 61, 62, 63};
+    static const int uart_irq[COUNT_UART] = {5, 6, 33, 59, 60, 61, 62, 63};
 
     // static const uint32_t timer_addr[2][6] = {
     //     {
@@ -721,25 +720,37 @@ static void tm4c123gh6pm_init(MachineState *ms)
     // };
     // static const int timer_irq[2][6] = {{19, 21, 23, 35, 70, 92}, {94, 96, 98, 100, 102, 104}};
 
-    static const uint32_t gpio_addr[6] = { 
+    static const uint32_t gpio_addr[N_GPIOS] = { 
         0x40004000, 0x40005000, 0x40006000, 0x40007000,
         0x40024000, 0x40025000
     };
-    static const int gpio_irq[6] = {0, 1, 2, 3, 4, 30};
+    static const int gpio_irq[N_GPIOS] = {0, 1, 2, 3, 4, 30};
     
-    static const uint32_t adc_addr[2] = {0x40038000, 0x40039000};
-    static const int adc_irq[2][4] = {{14, 15, 16, 17}, {48, 49, 50, 51}};
+    static const uint32_t adc_addr[COUNT_ADC] = {0x40038000, 0x40039000};
+    static const int adc_irq[COUNT_ADC][COUNT_SS] = {
+        {14, 15, 16, 17}, {48, 49, 50, 51}
+    };
 
-    uint8_t gpio_ain_ports[12] = {
+    uint8_t gpio_ain_ports[COUNT_AIN] = {
         GPIO_E, GPIO_E, GPIO_E, GPIO_E, 
         GPIO_D, GPIO_D, GPIO_D, GPIO_D, 
         GPIO_E, GPIO_E, GPIO_B, GPIO_B
     };
 
-    uint8_t gpio_ain_pins[] = {
+    uint8_t gpio_ain_pins[COUNT_AIN] = {
         3, 2, 1, 0,
         3, 2, 1, 0,
         5, 4, 5, 4
+    };
+
+    uint8_t gpio_uart_ports[COUNT_UART] = {
+        GPIO_A, GPIO_B, GPIO_D, GPIO_C,
+        GPIO_C, GPIO_E, GPIO_D, GPIO_E
+    };
+
+    // Only store rx, tx is always +1
+    uint8_t gpio_uart_rx_pins[COUNT_UART] = {
+        0, 0, 6, 6, 4, 4, 4, 0
     };
 
     /* Memory map of SoC devices, from
@@ -826,6 +837,7 @@ static void tm4c123gh6pm_init(MachineState *ms)
     DeviceState *ssys_dev;
     int i;
     int j;
+    int k;
 
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     MemoryRegion *flash = g_new(MemoryRegion, 1);
@@ -902,18 +914,20 @@ static void tm4c123gh6pm_init(MachineState *ms)
     sysbus_mmio_map(SYS_BUS_DEVICE(ssys_dev), 0, 0x400fe000);
     sysbus_connect_irq(SYS_BUS_DEVICE(ssys_dev), 0, qdev_get_gpio_in(nvic, 28)); // Interrupt 28: System Control
 
-    qemu_irq gpio_in[6][8];
-    qemu_irq gpio_out[6][8];
+    qemu_irq gpio_in[N_GPIOS][N_GPIO_BITS][N_PCTL_OPTS];
+    qemu_irq gpio_out[N_GPIOS][N_GPIO_BITS][N_PCTL_OPTS];
 
     // GPIO
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < N_GPIOS; i++) {
         gpio_dev[i] = gpio_create(gpio_addr[i], qdev_get_gpio_in(nvic, gpio_irq[i]), i);
         
-        for (j = 0; j < 8; j++) {
-            // GPIO IN are the irqs of data coming IN to the system via GPIO
-            gpio_in[i][j] = qdev_get_gpio_in(gpio_dev[i], j);
-            // GPIO OUT are the irqs of data going OUT of the system via GPIO
-            gpio_out[i][j] = NULL;
+        for (j = 0; j < N_GPIO_BITS; j++) {
+            for (k = 0; k < N_PCTL_OPTS; k++) {
+                // GPIO OUT are the irqs of data going OUT of the system via GPIO
+                gpio_out[i][j][k] = NULL;
+                // GPIO IN are the irqs of data coming IN to the system via GPIO
+                gpio_in[i][j][k] = qdev_get_gpio_in(gpio_dev[i], j * N_PCTL_OPTS + k);
+            }
         }
     }
 
@@ -942,16 +956,17 @@ static void tm4c123gh6pm_init(MachineState *ms)
             qdev_connect_gpio_out(splitter, j, qdev_get_gpio_in(adc[j], i));
         }
 
-        qdev_connect_gpio_out_named(gpio_dev[port], GPIO_NAMED_OUTS[pin], F_AIN, qdev_get_gpio_in(splitter, 0));
+        gpio_out[port][pin][F_ANALOG] = qdev_get_gpio_in(splitter, 0);
+        // qdev_connect_gpio_out_named(gpio_dev[port], GPIO_NAMED_PINS[pin], F_ANALOG, qdev_get_gpio_in(splitter, 0));
     }
 
     // Analog test input device
     dev = sysbus_create_varargs(TYPE_TEST_ANALOG, 0x40002000, NULL);
-    for (i = 0; i < 12; i++) {
+    for (i = 0; i < COUNT_AIN; i++) {
         uint8_t port = gpio_ain_ports[i];
         uint8_t pin = gpio_ain_pins[i];
         // Connect analog test device to ains
-        qdev_connect_gpio_out(dev, i, gpio_in[port][pin]);
+        qdev_connect_gpio_out(dev, i, gpio_in[port][pin][F_ANALOG]);
     }
 
     // // Timers
@@ -974,23 +989,75 @@ static void tm4c123gh6pm_init(MachineState *ms)
     // }
 
     // UART
-    for (i = 0; i < 1/*8*/; i++) {
-        SysBusDevice *sbd;
+    for (i = 0; i < COUNT_UART; i++) {
+        // UART1 is weird, do it outside the loop
+        uint8_t port = gpio_uart_ports[i];
+        uint8_t pin = gpio_uart_rx_pins[i];
 
-        dev = qdev_new("pl011_luminary");
-        object_property_add_child(soc_container, "uart[*]", OBJECT(dev));
-        sbd = SYS_BUS_DEVICE(dev);
-        qdev_prop_set_chr(dev, "chardev", serial_hd(i));
-        sysbus_realize_and_unref(sbd, &error_fatal);
-        sysbus_mmio_map(sbd, 0, uart_addr[i]);
-        sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(nvic, uart_irq[i]));
+        qemu_irq tx_gpio = gpio_in[port][pin + 1][F_UART];
+        qemu_irq cts = NULL;
+        qemu_irq rts = NULL;
+
+        DeviceState *rx_dev = gpio_dev[port];
+        const char *rx_name = GPIO_NAMED_PINS[pin];
+
+        uint8_t rx_irq = F_UART;
+        
+        if (i == 1) {
+            // UART 1 has two GPIO AFSEL table slots
+            DeviceState *splitter = qdev_new(TYPE_SPLIT_IRQ);
+            object_property_add_child(OBJECT(ms), "splitter[*]", OBJECT(splitter));
+            qdev_prop_set_uint32(splitter, "num-lines", 2);
+            qdev_realize_and_unref(splitter, NULL, &error_fatal);
+
+            qdev_connect_gpio_out(splitter, 0, gpio_in[port][pin + 1][F_UART]);
+            qdev_connect_gpio_out(splitter, 1, gpio_in[GPIO_C][5][F_UART_ALT]);
+
+            // Split TX from UART 1 to both gpio
+            tx_gpio = qdev_get_gpio_in(splitter, 0);
+
+            DeviceState *joiner = qdev_new(TYPE_JOIN_IRQ);
+            object_property_add_child(OBJECT(ms), "joiner[*]", OBJECT(joiner));
+            qdev_prop_set_uint32(joiner, "num-lines", 2);
+            qdev_realize_and_unref(joiner, NULL, &error_fatal);
+
+            gpio_out[port][pin][F_UART] = qdev_get_gpio_in(joiner, 0);
+            gpio_out[GPIO_C][4][F_UART_ALT] = qdev_get_gpio_in(joiner, 1);
+
+            rx_dev = joiner;
+            rx_name = NULL;
+            rx_irq = 0;
+
+            // TODO RTS and CTS
+        }
+
+        dev = uart_create(uart_addr[i], i, qdev_get_gpio_in(nvic, uart_irq[i]), 
+                          tx_gpio, rts, cts);
+        // Connect RX pin
+        qdev_connect_gpio_out_named(rx_dev, rx_name, rx_irq, qdev_get_gpio_in(dev, 0));
+
+        // SysBusDevice *sbd;
+
+        // dev = qdev_new("pl011_luminary");
+        // object_property_add_child(soc_container, "uart[*]", OBJECT(dev));
+        // sbd = SYS_BUS_DEVICE(dev);
+        // qdev_prop_set_chr(dev, "chardev", serial_hd(i));
+        // sysbus_realize_and_unref(sbd, &error_fatal);
+        // sysbus_mmio_map(sbd, 0, uart_addr[i]);
+        // sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(nvic, uart_irq[i]));
     }
+    // Connect U0 TX to U1 RX for testing
+    gpio_out[GPIO_A][1][F_UART] = gpio_in[GPIO_B][0][F_UART];
 
     // Connect GPIO outs
-    for (i = 0; i < 6; i++) {
-        for (j = 0; j < 8; j++) {
-            if (gpio_out[i][j]) {
-                qdev_connect_gpio_out(gpio_dev[i], j, gpio_out[i][j]);
+    for (i = 0; i < N_GPIOS; i++) {
+        for (j = 0; j < N_GPIO_BITS; j++) {
+            for (k = 0; k < N_PCTL_OPTS; k++) {
+                if (!gpio_out[i][j][k]) {
+                    continue;
+                }
+                qdev_connect_gpio_out_named(gpio_dev[i], GPIO_NAMED_PINS[j],
+                                            k, gpio_out[i][j][k]);
             }
         }
     }

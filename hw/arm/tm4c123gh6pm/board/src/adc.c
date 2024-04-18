@@ -118,6 +118,8 @@ static void adc_pssi_trigger(ADCState *s)
     }
     // Update the nvic with new interrupts
     adc_update_nvic(s);
+    // Clear busy bit
+    s->actss &= ~0x00010000;
 }
 
 // Resets the ADC
@@ -277,39 +279,39 @@ static void adc_write(void *opaque, hwaddr offset,
         s->actss = value & 0xf;
         break;
     case 0x08: /* IM */
-        reg = "ACTSS";
+        reg = "IM";
         s->im = value;
         break;
     case 0x0c: /* ISC */
-        reg = "ACTSS";
+        reg = "ISC";
         s->ris &= ~value;
         break;
     case 0x10: /* OSTAT */
-        reg = "ACTSS";
+        reg = "OSTAT";
         s->ostat &= ~value;
         break;
     case 0x14: /* EMUX */
-        reg = "ACTSS";
+        reg = "EMUX";
         s->emux = value;
         break;
     case 0x18: /* USTAT */
-        reg = "ACTSS";
+        reg = "USTAT";
         s->ustat &= ~value;
         break;
     case 0x1c:
-        reg = "ACTSS";
+        reg = "TSSEL";
         s->tssel = value;
         break;
     case 0x20: /* SSPRI */
-        reg = "ACTSS";
+        reg = "SSPRI";
         s->sspri = value;
         break;
     case 0x24:
-        reg = "ACTSS";
+        reg = "SPC";
         s->spc = value;
         break;
     case 0x28: /* PSSI */
-        reg = "ACTSS";
+        reg = "PSSI";
         s->pssi = value;
         adc_pssi_trigger(s);
         break;
@@ -354,7 +356,7 @@ static const MemoryRegionOps adc_ops = {
 
 // VMState for the ADC
 static const VMStateDescription vmstate_adc = {
-    .name = "tm4c123gh6pm_adc",
+    .name = TYPE_TM4_ADC,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
