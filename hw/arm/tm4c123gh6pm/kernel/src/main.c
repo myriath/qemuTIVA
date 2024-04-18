@@ -32,7 +32,7 @@ void handle_uart1(void)
             // read uart while fifo not empty
             uart = UART1_DR_R;
         }
-        UART1_MIS_R &= UART_MIS_RXMIS;
+        UART1_ICR_R |= UART_ICR_RXIC;
     }
 }
 
