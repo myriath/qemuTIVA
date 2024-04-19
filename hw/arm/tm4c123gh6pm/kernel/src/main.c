@@ -2,14 +2,19 @@
 
 int a = 0;
 
+void uart_write(int data) {
+    while (UART0_FR_R & UART_FR_TXFF);
+    UART0_DR_R = data;
+}
+
 void handle_adc0(void)
 {
     int adc;
     ADC0_ISC_R |= 1;
     while (~ADC0_SSFSTAT0_R & 0x100) {
         adc = ADC0_SSFIFO0_R;
-        UART0_DR_R = adc >> 8;
-        UART0_DR_R = adc & 0xff;
+        uart_write(adc >> 8);
+        uart_write(adc & 0xff);
     }
 }
 
@@ -19,8 +24,8 @@ void handle_adc1(void)
     ADC1_ISC_R |= 1;
     while (~ADC1_SSFSTAT0_R & 0x100) {
         adc = ADC1_SSFIFO0_R;
-        UART0_DR_R = adc >> 8;
-        UART0_DR_R = adc & 0xff;
+        uart_write(adc >> 8);
+        uart_write(adc & 0xff);
     }
 }
 
@@ -100,18 +105,22 @@ int main()
 
     // Configure UART
     UART0_CTL_R &= ~0x1;
-    UART0_CTL_R = UART_CTL_RXE | UART_CTL_TXE;
-    UART0_IBRD_R = 104;
+    UART0_CTL_R = UART_CTL_TXE;
+    // UART0_IBRD_R = 104;
+    // UART0_FBRD_R = 11;
+    UART0_IBRD_R = 100000;
     UART0_FBRD_R = 11;
     UART0_CC_R = 0;
-    UART0_LCRH_R = UART_LCRH_WLEN_8 | UART_LCRH_STP2 | UART_LCRH_EPS | UART_LCRH_PEN;
+    UART0_LCRH_R = UART_LCRH_WLEN_8 | UART_LCRH_STP2 | UART_LCRH_EPS | UART_LCRH_PEN | UART_LCRH_FEN;
     UART0_ICR_R |= UART_ICR_RXIC | UART_ICR_TXIC;
     UART0_IM_R |= UART_IM_RXIM | UART_IM_TXIM;
     UART0_CTL_R |= 1;
 
     UART1_CTL_R &= ~0x1;
-    UART1_CTL_R = UART_CTL_RXE | UART_CTL_TXE;
-    UART1_IBRD_R = 104;
+    UART1_CTL_R = UART_CTL_RXE;
+    // UART1_IBRD_R = 104;
+    // UART1_FBRD_R = 11;
+    UART1_IBRD_R = 100000;
     UART1_FBRD_R = 11;
     UART1_CC_R = 0;
     UART1_LCRH_R = UART_LCRH_WLEN_8 | UART_LCRH_STP2 | UART_LCRH_EPS | UART_LCRH_PEN | UART_LCRH_FEN;
@@ -164,6 +173,8 @@ int main()
     while (~ADC1_SSFSTAT0_R & 0x100);
     while (~ADC0_SSFSTAT0_R & 0x100);
 
+    while (UART0_FR_R & UART_FR_BUSY);
+    while (~UART0_FR_R & UART_FR_TXFE);
     while (~UART1_FR_R & UART_FR_RXFE);
 
     // Force hard fault for testing interrupt
