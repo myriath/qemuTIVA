@@ -23,6 +23,17 @@ static inline unsigned uart_get_fifo_depth(UARTState *s)
     return uart_fifo_enabled(s) ? UART_FIFO_DEPTH : 1;
 }
 
+// "Variable precision SWAR algorithm" from SO
+// (https://stackoverflow.com/a/109025)
+// Should be replaced by compiler with a popcount instruction if available
+static uint32_t count_set_bits(uint32_t i) {
+    i = i - ((i >> 1) & 0x55555555);
+    i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
+    i = (i + (i >> 4)) & 0x0f0f0f0f;
+    i *= 0x01010101;
+    return i >> 24;
+}
+
 #define UART_FIFO_READ 0
 #define UART_FIFO_WRITE 1
 
@@ -115,6 +126,18 @@ static void parse_frame(UARTState *s)
     frame_size -= wlen;
     if (parity) {
         parity = (frame >> (frame_size - 1)) & 0x1;
+        uint8_t calc_parity = count_set_bits(word) & 0x1;
+        if (s->lcrh & UART_LCRH_SPS) {
+            calc_parity = !(s->lcrh & UART_LCRH_EPS);
+        } else if (!(s->lcrh & UART_LCRH_EPS)) {
+            calc_parity = !calc_parity;
+        }
+
+        if (parity != calc_parity) {
+            s->dr |= UART_DR_PE;
+            s->ris |= UART_INT_PE;
+        }
+
         frame_size--;
         // todo check parity
     }
@@ -138,33 +161,33 @@ static void parse_frame(UARTState *s)
     return;
 }
 
-static void uart_stop(UARTState *s)
+static void uart_stop(QEMUTimer *timer)
 {
-    timer_del(s->timer);
+    timer_del(timer);
 }
 
-static void uart_reload(UARTState *s, bool reset)
+static uint64_t get_baud_time_ns(UARTState *s)
 {
-    int64_t tick;
+    return (uint64_t)(
+        (double)(s->ibrd + ((s->fbrd - (double)0.5) / 64)) * 1000
+    );
+}
+
+static void uart_reload(QEMUTimer *timer, int64_t *pTick, uint64_t timeout, bool reset)
+{
     if (reset) {
-        tick = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        s->timer_state = true;
-    } else {
-        tick = s->tick;
+        (*pTick) = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     }
 
-    // Calculate ns from baud settings
-    double micro = s->ibrd + ((s->fbrd - (double)0.5) / 64);
-    // micro * 500 instead of 1000 because the timing is halved to 
-    // allow for offset read and write operations.
-    tick += (uint64_t)(micro * 500);
+    (*pTick) += timeout;
 
-    s->tick = tick;
-    timer_mod(s->timer, tick);
+    timer_mod(timer, *pTick);
 }
 
-static void uart_tick_write(UARTState *s)
+static void uart_tick_write(void *opaque)
 {
+    UARTState *s = opaque;
+
     // UART by default sends 1
     bool bit = true;
     if (s->write_count > 0) {
@@ -188,10 +211,13 @@ static void uart_tick_write(UARTState *s)
         }
     }
     qemu_set_irq(s->tx_gpio, bit);
+    uart_reload(s->write_timer, &s->write_tick, get_baud_time_ns(s), false);
 }
 
-static void uart_tick_read(UARTState *s)
+static void uart_tick_read(void *opaque)
 {
+    UARTState *s = opaque;
+
     if (!s->reading && s->rx_state != 0) {
         return;
     }
@@ -204,37 +230,10 @@ static void uart_tick_read(UARTState *s)
         s->read_bit = 0;
         parse_frame(s);
         s->receive_frame = 0;
-    }
-}
-static void uart_tick(void *opaque)
-{
-    UARTState *s = opaque;
-
-    if (s->timer_state) {
-        if (s->ctl & UART_CTL_TXE) {
-            uart_tick_write(s);
-        }
     } else {
-        if (s->ctl & UART_CTL_RXE) {
-            uart_tick_read(s);
-        }
+        uart_reload(s->read_timer, &s->read_tick, get_baud_time_ns(s), false);
     }
-    s->timer_state = !s->timer_state;
 
-    uart_reload(s, false);
-}
-
-
-
-// "Variable precision SWAR algorithm" from SO
-// (https://stackoverflow.com/a/109025)
-// Should be replaced by compiler with a popcount instruction if available
-static uint32_t count_set_bits(uint32_t i) {
-    i = i - ((i >> 1) & 0x55555555);
-    i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
-    i = (i + (i >> 4)) & 0x0f0f0f0f;
-    i *= 0x01010101;
-    return i >> 24;
 }
 
 DeviceState *uart_create(hwaddr addr, uint8_t uart, qemu_irq nvic_irq, qemu_irq tx_gpio, qemu_irq rts, qemu_irq cts, Clock *clk)
@@ -347,24 +346,19 @@ static void uart_send(UARTState *s) {
     if (s->lcrh & UART_LCRH_PEN) {
         wlen++;
         uint8_t parity = count_set_bits(word) & 0x1;
-        // Stick Parity Bit
-        // TODO
-        /*
-        if (s->lcrh & 0x80) {
-            parity = ()
-        }
-        */
-        if (s->lcrh & UART_LCRH_EPS) {
+        if (s->lcrh & UART_LCRH_SPS) {
+            word = (word << 1) | !(s->lcrh & UART_LCRH_EPS);
+        } else if (s->lcrh & UART_LCRH_EPS) {
             // Even parity
-            word = (word << 1) | (parity == 0);
+            word = (word << 1) | (parity);
         } else {
             // Odd parity
-            word = (word << 1) | (parity == 1);
+            word = (word << 1) | !(parity);
         }
     }
     // Calculate number of stop bits
     if (s->lcrh & UART_LCRH_STP2) {
-       word = (word << 2) | 0x3;
+        word = (word << 2) | 0x3;
         wlen += 2;
     } else {
         word = (word << 1) | 0x1;
@@ -429,9 +423,25 @@ static void uart_write(void *opaque, hwaddr offset, uint64_t value, unsigned siz
             s->ctl = value;
             if (ctl_delta & UART_CTL_UARTEN) {
                 if (value & UART_CTL_UARTEN) {
-                    uart_reload(s, true);
+                    if (value & UART_CTL_TXE) {
+                        uart_reload(s->write_timer, &s->write_tick, 0, true);
+                    }
                 } else {
-                    uart_stop(s);
+                    uart_stop(s->read_timer);
+                    uart_stop(s->write_timer);
+                }
+            } else {
+                if (ctl_delta & UART_CTL_TXE) {
+                    if ((value & UART_CTL_UARTEN) && (value & UART_CTL_TXE)) {
+                        uart_reload(s->write_timer, &s->write_tick, 0, true);
+                    } else {
+                        uart_stop(s->write_timer);
+                    }
+                }
+                if (ctl_delta & UART_CTL_RXE) {
+                    if (!((value & UART_CTL_UARTEN) && (value & UART_CTL_RXE))) {
+                        uart_stop(s->read_timer);
+                    }
                 }
             }
             // TODO: might want to stop timer if both RX and TX are disabled
@@ -585,6 +595,15 @@ static Property uart_properties[] =
 static void uart_rx_gpio(void *opaque, int irq, int level)
 {
     UARTState *s = opaque;
+
+    if (~s->ctl & (UART_CTL_RXE | UART_CTL_UARTEN)) {
+        return;
+    }
+
+    if (!s->reading && level == 0) {
+        // start read
+        uart_reload(s->read_timer, &s->read_tick, get_baud_time_ns(s) / 2, true);
+    }
     s->rx_state = (level != 0);
 }
 
@@ -618,7 +637,8 @@ static void uart_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, uart_tick, s);
+    s->read_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, uart_tick_read, s);
+    s->write_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, uart_tick_write, s);
 
     // nothing for now
 }

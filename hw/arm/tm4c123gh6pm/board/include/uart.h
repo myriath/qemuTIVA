@@ -107,10 +107,10 @@ struct UARTState {
     qemu_irq rx_gpio;
 
     // Stuff for timing uart send / receive
-    // True = will TX when ticked, False = will RX when ticked
-    bool timer_state;
-    int64_t tick;
-    QEMUTimer *timer;
+    int64_t write_tick;
+    int64_t read_tick;
+    QEMUTimer *write_timer;
+    QEMUTimer *read_timer;
     Clock *clk;
 
     const uint8_t *id;
