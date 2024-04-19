@@ -107,7 +107,7 @@ static void parse_frame(UARTState *s)
     }
     uint8_t wlen_mask = (1 << wlen) - 1;
     uint8_t reverse_word = (frame >> (frame_size - wlen)) & wlen_mask;
-    uint8_t word;
+    uint8_t word = 0;
     for (int i = 0; i < wlen; i++) {
         word = ((word << 1) | (reverse_word & 0x1)) & wlen_mask;
         reverse_word >>= 1;
@@ -338,7 +338,7 @@ static void uart_send(UARTState *s) {
     uint8_t wlen = 5 + ((s->lcrh >> 5) & 0x3);
     uint8_t wlen_mask = ((1 << wlen) - 1);
     uint8_t reverse_data = s->dr & wlen_mask;
-    uint16_t word;
+    uint16_t word = 0;
     for (int i = 0; i < wlen; i++) {
         word = ((word << 1) | (reverse_data & 0x1)) & wlen_mask;
         reverse_data >>= 1;
