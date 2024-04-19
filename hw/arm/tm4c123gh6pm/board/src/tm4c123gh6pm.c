@@ -1032,7 +1032,7 @@ static void tm4c123gh6pm_init(MachineState *ms)
         }
 
         dev = uart_create(uart_addr[i], i, qdev_get_gpio_in(nvic, uart_irq[i]), 
-                          tx_gpio, rts, cts);
+                          tx_gpio, rts, cts, qdev_get_clock_out(ssys_dev, "SYSCLK"));
         // Connect RX pin
         qdev_connect_gpio_out_named(rx_dev, rx_name, rx_irq, qdev_get_gpio_in(dev, 0));
 
