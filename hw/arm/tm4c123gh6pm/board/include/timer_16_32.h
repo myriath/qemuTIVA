@@ -89,6 +89,8 @@
 #define GPTM_PWM_PR         7
 #define GPTM_PWM_OS         8
 
+#define COUNT_TIMERS        6
+
 
 /*
  * QEMU interface:
@@ -109,11 +111,13 @@ struct GPTMState {
     uint32_t imr;
     uint32_t ris;
     uint32_t load[2];
-    uint64_t load_64;
+    uint32_t temp_load[2];
     uint32_t match[2];
-    uint64_t match_64;
+    uint32_t temp_match[2];
     uint32_t prescale[2];
+    uint32_t temp_prescale[2];
     uint32_t prescale_match[2];
+    uint32_t temp_prescale_match[2];
     uint32_t value[2];
 
     // Properties
@@ -122,19 +126,8 @@ struct GPTMState {
     uint32_t prescale_value[2];
     uint32_t pp;
 
-    uint8_t width;
+    bool settings_changed;
 
-    // uint32_t config;
-    // uint32_t mode[2];
-    // uint32_t control;
-    // uint32_t state;
-    // uint32_t mask;
-    // uint32_t load[2];
-    // uint32_t match[2];
-    // uint32_t prescale[2];
-    // uint32_t match_prescale[2];
-    // uint32_t rtc;
-    // Used for Counter mode
     int64_t count[2];
     // Used for Edge-time mode
     int64_t capture[2];

@@ -3,6 +3,7 @@
 
 #include "joiner.h"
 #include "gpio.h"
+#include "timer_16_32.h"
 #include "adc.h"
 #include "uart.h"
 #include "test_analog.h"

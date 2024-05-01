@@ -702,23 +702,26 @@ static void tm4c123gh6pm_sys_instance_init(Object *obj)
 
 static void tm4c123gh6pm_init(MachineState *ms)
 {
+    qemu_irq gpio_in[N_GPIOS][N_GPIO_BITS][N_PCTL_OPTS];
+    qemu_irq gpio_out[N_GPIOS][N_GPIO_BITS][N_PCTL_OPTS];
+
     static const uint32_t uart_addr[COUNT_UART] = {
         0x4000c000, 0x4000d000, 0x4000e000, 0x4000f000,
         0x40010000, 0x40011000, 0x40012000, 0x40013000
     };
     static const int uart_irq[COUNT_UART] = {5, 6, 33, 59, 60, 61, 62, 63};
 
-    // static const uint32_t timer_addr[2][6] = {
-    //     {
-    //         0x40030000, 0x40031000, 0x40032000,
-    //         0x40033000, 0x40034000, 0x40035000
-    //     },
-    //     {
-    //         0x40036000, 0x40037000, 0x4004c000,
-    //         0x4004d000, 0x4004e000, 0x4004f000
-    //     }
-    // };
-    // static const int timer_irq[2][6] = {{19, 21, 23, 35, 70, 92}, {94, 96, 98, 100, 102, 104}};
+    static const uint32_t timer_addr[2][6] = {
+        {
+            0x40030000, 0x40031000, 0x40032000,
+            0x40033000, 0x40034000, 0x40035000
+        },
+        {
+            0x40036000, 0x40037000, 0x4004c000,
+            0x4004d000, 0x4004e000, 0x4004f000
+        }
+    };
+    static const int timer_irq[2][6] = {{19, 21, 23, 35, 70, 92}, {94, 96, 98, 100, 102, 104}};
 
     static const uint32_t gpio_addr[N_GPIOS] = { 
         0x40004000, 0x40005000, 0x40006000, 0x40007000,
@@ -751,6 +754,15 @@ static void tm4c123gh6pm_init(MachineState *ms)
     // Only store rx, tx is always +1
     uint8_t gpio_uart_rx_pins[COUNT_UART] = {
         0, 0, 6, 6, 4, 4, 4, 0
+    };
+
+    uint8_t timer_ccp_ports[COUNT_TIMERS] = {
+        GPIO_B, GPIO_B, GPIO_B,
+        GPIO_B, GPIO_C, GPIO_C
+    };
+
+    uint8_t timer_ccp_pins[COUNT_TIMERS] = {
+        6, 4, 0, 2, 0, 2
     };
 
     /* Memory map of SoC devices, from
@@ -797,17 +809,17 @@ static void tm4c123gh6pm_init(MachineState *ms)
      * 40033000 16/32 timer 3
      * 40034000 16/32 timer 4
      * 40035000 16/32 timer 5
-     * 40036000 32/64 timer 0
-     * 40037000 32/64 timer 1
+     * 40036000 32/64 timer 0 (unimplemented)
+     * 40037000 32/64 timer 1 (unimplemented)
      * 40038000 ADC0
      * 40039000 ADC1
      * 4003c000 analogue comparator (unimplemented)
      * 40040000 CAN0 (unimplemented)
      * 40041000 CAN1 (unimplemented)
-     * 4004c000 32/64 timer 2
-     * 4004d000 32/64 timer 3
-     * 4004e000 32/64 timer 4
-     * 4004f000 32/64 timer 5
+     * 4004c000 32/64 timer 2 (unimplemented)
+     * 4004d000 32/64 timer 3 (unimplemented)
+     * 4004e000 32/64 timer 4 (unimplemented)
+     * 4004f000 32/64 timer 5 (unimplemented)
      * 40050000 USB (unimplemented)
      * 40058000 GPIO A (AHB) (unimplemented)
      * 40059000 GPIO B (AHB) (unimplemented)
@@ -914,8 +926,6 @@ static void tm4c123gh6pm_init(MachineState *ms)
     sysbus_mmio_map(SYS_BUS_DEVICE(ssys_dev), 0, 0x400fe000);
     sysbus_connect_irq(SYS_BUS_DEVICE(ssys_dev), 0, qdev_get_gpio_in(nvic, 28)); // Interrupt 28: System Control
 
-    qemu_irq gpio_in[N_GPIOS][N_GPIO_BITS][N_PCTL_OPTS];
-    qemu_irq gpio_out[N_GPIOS][N_GPIO_BITS][N_PCTL_OPTS];
 
     // GPIO
     for (i = 0; i < N_GPIOS; i++) {
@@ -969,24 +979,27 @@ static void tm4c123gh6pm_init(MachineState *ms)
         qdev_connect_gpio_out(dev, i, gpio_in[port][pin][F_ANALOG]);
     }
 
-    // // Timers
-    // for (i = 0; i < 12; i++) {
-    //     SysBusDevice *sbd;
+    // Timers
+    for (i = 0; i < COUNT_TIMERS; i++) {
+        SysBusDevice *sbd;
 
-    //     dev = qdev_new(TYPE_TM4_TIMER); // TODO
-    //     sbd = SYS_BUS_DEVICE(dev);
-    //     object_property_add_child(soc_container, "gptm[*]", OBJECT(dev));
-    //     qdev_connect_clock_in(dev, "clk",
-    //                             qdev_get_clock_out(ssys_dev, "SYSCLK"));
-    //     sysbus_realize_and_unref(sbd, &error_fatal);
-    //     int width = i / 6;
-    //     int index = i % 6;
-    //     sysbus_mmio_map(sbd, 0, timer_addr[width][index]);
-    //     sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(nvic, timer_irq[width][index]));
-    //     /* TODO: This is incorrect, but we get away with it because
-    //         the ADC output is only ever pulsed.  */
-    //     qdev_connect_gpio_out(dev, 0, adc1);
-    // }
+        dev = qdev_new(TYPE_TM4_TIMER); // TODO
+        sbd = SYS_BUS_DEVICE(dev);
+        object_property_add_child(soc_container, "gptm[*]", OBJECT(dev));
+        qdev_connect_clock_in(dev, "clk",
+                                qdev_get_clock_out(ssys_dev, "SYSCLK"));
+        sysbus_realize_and_unref(sbd, &error_fatal);
+        int width = i / 6;
+        int index = i % 6;
+        sysbus_mmio_map(sbd, 0, timer_addr[width][index]);
+        sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(nvic, timer_irq[width][index]));
+        /* TODO: This is incorrect, but we get away with it because
+            the ADC output is only ever pulsed.  */
+        uint8_t port = timer_ccp_ports[i];
+        uint8_t pin = timer_ccp_pins[i];
+        qdev_connect_gpio_out(dev, 0, gpio_in[port][pin][F_TIMER]);
+        qdev_connect_gpio_out(dev, 1, gpio_in[port][pin + 1][F_TIMER]);
+    }
 
     // UART
     for (i = 0; i < COUNT_UART; i++) {
@@ -1035,16 +1048,6 @@ static void tm4c123gh6pm_init(MachineState *ms)
                           tx_gpio, rts, cts, qdev_get_clock_out(ssys_dev, "SYSCLK"));
         // Connect RX pin
         qdev_connect_gpio_out_named(rx_dev, rx_name, rx_irq, qdev_get_gpio_in(dev, 0));
-
-        // SysBusDevice *sbd;
-
-        // dev = qdev_new("pl011_luminary");
-        // object_property_add_child(soc_container, "uart[*]", OBJECT(dev));
-        // sbd = SYS_BUS_DEVICE(dev);
-        // qdev_prop_set_chr(dev, "chardev", serial_hd(i));
-        // sysbus_realize_and_unref(sbd, &error_fatal);
-        // sysbus_mmio_map(sbd, 0, uart_addr[i]);
-        // sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(nvic, uart_irq[i]));
     }
     // Connect U0 TX to U1 RX for testing
     gpio_out[GPIO_A][1][F_UART] = gpio_in[GPIO_B][0][F_UART];
