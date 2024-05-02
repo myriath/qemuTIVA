@@ -1,0 +1,163 @@
+Core Registers			Core Registers	
+WATCHDOG0			Watchdog Timer register offsets	
+WATCHDOG1			Watchdog Timer register offsets	
+GPIO_PORTA			GPIO register offsets	
+GPIO_PORTB			GPIO register offsets	
+GPIO_PORTC			GPIO register offsets	
+GPIO_PORTD			GPIO register offsets	
+SSI0			SSI register offsets	
+SSI1			SSI register offsets	
+SSI2			SSI register offsets	
+SSI3			SSI register offsets	
+UART0			UART register offsets	
+UART1			UART register offsets	
+UART2			UART register offsets	
+UART3			UART register offsets	
+UART4			UART register offsets	
+UART5			UART register offsets	
+UART6			UART register offsets	
+UART7			UART register offsets	
+I2C0			I2C register offsets	
+I2C1			I2C register offsets	
+I2C2			I2C register offsets	
+I2C3			I2C register offsets	
+GPIO_PORTE			GPIO register offsets	
+GPIO_PORTF			GPIO register offsets	
+PWM0			PWM register offsets	
+PWM1			PWM register offsets	
+QEI0			QEI register offsets	
+QEI1			QEI register offsets	
+TIMER0			Timer register offsets	
+TIMER1			Timer register offsets	
+TIMER2			Timer register offsets	
+TIMER3			Timer register offsets	
+TIMER4			Timer register offsets	
+TIMER5			Timer register offsets	
+WTIMER0			Timer register offsets	
+WTIMER1			Timer register offsets	
+ADC0			ADC register offsets	
+ADC1			ADC register offsets	
+COMP			Comparator register offsets	
+CAN0			CAN register offsets	
+CAN1			CAN register offsets	
+WTIMER2			Timer register offsets	
+WTIMER3			Timer register offsets	
+WTIMER4			Timer register offsets	
+WTIMER5			Timer register offsets	
+USB0			Univeral Serial Bus register offsets	
+GPIO_PORTA_AHB			GPIO register offsets	
+GPIO_PORTB_AHB			GPIO register offsets	
+GPIO_PORTC_AHB			GPIO register offsets	
+GPIO_PORTD_AHB			GPIO register offsets	
+GPIO_PORTE_AHB			GPIO register offsets	
+GPIO_PORTF_AHB			GPIO register offsets	
+EEPROM			EEPROM register offsets	
+SYSEXC			System Exception Module register addresses	
+HIB			Hibernation module register addresses	
+FLASH_CTRL			FLASH register offsets	
+SYSCTL			System Control register addresses	
+	[0 ... 99]				
+		SYSCTL_DID0	Unsigned / Readable,Writeable	0x18050102	Device Identification 0 [Memory Mapped]	
+		SYSCTL_DID1	Unsigned / Readable,Writeable	0x10A1606E	Device Identification 1 [Memory Mapped]	
+		SYSCTL_DC0	Unsigned / Readable,Writeable	0x007F007F	Device Capabilities 0 [Memory Mapped]	
+		SYSCTL_DC1	Unsigned / Readable,Writeable	0x13332FFF	Device Capabilities 1 [Memory Mapped]	
+		SYSCTL_DC2	Unsigned / Readable,Writeable	0x030FF337	Device Capabilities 2 [Memory Mapped]	
+		SYSCTL_DC3	Unsigned / Readable,Writeable	0xBFFF8FFF	Device Capabilities 3 [Memory Mapped]	
+		SYSCTL_DC4	Unsigned / Readable,Writeable	0x0004F03F	Device Capabilities 4 [Memory Mapped]	
+		SYSCTL_DC5	Unsigned / Readable,Writeable	0x013000FF	Device Capabilities 5 [Memory Mapped]	
+		SYSCTL_DC6	Unsigned / Readable,Writeable	0x00000013	Device Capabilities 6 [Memory Mapped]	
+		SYSCTL_DC7	Unsigned / Readable,Writeable	0xFFFFFFFF	Device Capabilities 7 [Memory Mapped]	
+		SYSCTL_DC8	Unsigned / Readable,Writeable	0x0FFF0FFF	Device Capabilities 8 [Memory Mapped]	
+		SYSCTL_PBORCTL	Unsigned / Readable,Writeable	0x00007FFF	Brown-Out Reset Control [Memory Mapped]	
+		SYSCTL_SRCR0	Unsigned / Readable,Writeable	0x00000000	Software Reset Control 0 [Memory Mapped]	
+		SYSCTL_SRCR1	Unsigned / Readable,Writeable	0x00000000	Software Reset Control 1 [Memory Mapped]	
+		SYSCTL_SRCR2	Unsigned / Readable,Writeable	0x00000000	Software Reset Control 2 [Memory Mapped]	
+		SYSCTL_RIS	Unsigned / Readable,Writeable	0x00000000	Raw Interrupt Status [Memory Mapped]	
+		SYSCTL_IMC	Unsigned / Readable,Writeable	0x00000000	Interrupt Mask Control [Memory Mapped]	
+		SYSCTL_MISC	Unsigned / Readable,Writeable	0x00000000	Masked Interrupt Status and Clear [Memory Mapped]	
+		SYSCTL_RESC	Unsigned / Readable,Writeable	0x00000012	Reset Cause [Memory Mapped]	
+		SYSCTL_RCC	Unsigned / Readable,Writeable	0x078E3AD1	Run-Mode Clock Configuration [Memory Mapped]	
+		SYSCTL_GPIOHBCTL	Unsigned / Readable,Writeable	0x00007E00	GPIO High-Performance Bus Control [Memory Mapped]	
+		SYSCTL_RCC2	Unsigned / Readable,Writeable	0x07C06810	Run-Mode Clock Configuration 2 [Memory Mapped]	
+		SYSCTL_MOSCCTL	Unsigned / Readable,Writeable	0x00000000	Main Oscillator Control [Memory Mapped]	
+		SYSCTL_RCGC0	Unsigned / Readable,Writeable	0x00000040	Run Mode Clock Gating Control Register 0 [Memory Mapped]	
+		SYSCTL_RCGC1	Unsigned / Readable,Writeable	0x00000000	Run Mode Clock Gating Control Register 1 [Memory Mapped]	
+		SYSCTL_RCGC2	Unsigned / Readable,Writeable	0x00000000	Run Mode Clock Gating Control Register 2 [Memory Mapped]	
+		SYSCTL_SCGC0	Unsigned / Readable,Writeable	0x00000040	Sleep Mode Clock Gating Control Register 0 [Memory Mapped]	
+		SYSCTL_SCGC1	Unsigned / Readable,Writeable	0x00000000	Sleep Mode Clock Gating Control Register 1 [Memory Mapped]	
+		SYSCTL_SCGC2	Unsigned / Readable,Writeable	0x00000000	Sleep Mode Clock Gating Control Register 2 [Memory Mapped]	
+		SYSCTL_DCGC0	Unsigned / Readable,Writeable	0x00000040	Deep Sleep Mode Clock Gating Control Register 0 [Memory Mapped]	
+		SYSCTL_DCGC1	Unsigned / Readable,Writeable	0x00000000	Deep-Sleep Mode Clock Gating Control Register 1 [Memory Mapped]	
+		SYSCTL_DCGC2	Unsigned / Readable,Writeable	0x00000000	Deep Sleep Mode Clock Gating Control Register 2 [Memory Mapped]	
+		SYSCTL_DSLPCLKCFG	Unsigned / Readable,Writeable	0x07800000	Deep Sleep Clock Configuration [Memory Mapped]	
+		SYSCTL_SYSPROP	Unsigned / Readable,Writeable	0x00001D31	System Properties [Memory Mapped]	
+		SYSCTL_PIOSCCAL	Unsigned / Readable,Writeable	0x00000000	Precision Internal Oscillator Calibration [Memory Mapped]	
+		SYSCTL_PIOSCSTAT	Unsigned / Readable,Writeable	0x00380038	Precision Internal Oscillator Statistics [Memory Mapped]	
+		SYSCTL_PLLFREQ0	Unsigned / Readable,Writeable	0x00000032	PLL Frequency 0 [Memory Mapped]	
+		SYSCTL_PLLFREQ1	Unsigned / Readable,Writeable	0x00000001	PLL Frequency 1 [Memory Mapped]	
+		SYSCTL_PLLSTAT	Unsigned / Readable,Writeable	0x00000000	PLL Status [Memory Mapped]	
+		SYSCTL_SLPPWRCFG	Unsigned / Readable,Writeable	0x00000000	Sleep Power Configuration [Memory Mapped]	
+		SYSCTL_DSLPPWRCFG	Unsigned / Readable,Writeable	0x00000000	Deep-Sleep Power Configuration [Memory Mapped]	
+		SYSCTL_DC9	Unsigned / Readable,Writeable	0x00FF00FF	Device Capabilities 9 [Memory Mapped]	
+		SYSCTL_NVMSTAT	Unsigned / Readable,Writeable	0x00000001	Non-Volatile Memory Information [Memory Mapped]	
+		SYSCTL_LDOSPCTL	Unsigned / Readable,Writeable	0x00000018	LDO Sleep Power Control [Memory Mapped]	
+		SYSCTL_LDODPCTL	Unsigned / Readable,Writeable	0x00000012	LDO Deep-Sleep Power Control [Memory Mapped]	
+		SYSCTL_PPWD	Unsigned / Readable,Writeable	0x00000003	Watchdog Timer Peripheral Present [Memory Mapped]	
+		SYSCTL_PPTIMER	Unsigned / Readable,Writeable	0x0000003F	16/32-Bit General-Purpose Timer Peripheral Present [Memory Mapped]	
+		SYSCTL_PPGPIO	Unsigned / Readable,Writeable	0x0000003F	General-Purpose Input/Output Peripheral Present [Memory Mapped]	
+		SYSCTL_PPDMA	Unsigned / Readable,Writeable	0x00000001	Micro Direct Memory Access Peripheral Present [Memory Mapped]	
+		SYSCTL_PPHIB	Unsigned / Readable,Writeable	0x00000001	Hibernation Peripheral Present [Memory Mapped]	
+		SYSCTL_PPUART	Unsigned / Readable,Writeable	0x000000FF	Universal Asynchronous Receiver/Transmitter Peripheral Present [Memory Mapped]	
+		SYSCTL_PPSSI	Unsigned / Readable,Writeable	0x0000000F	Synchronous Serial Interface Peripheral Present [Memory Mapped]	
+		SYSCTL_PPI2C	Unsigned / Readable,Writeable	0x0000000F	Inter-Integrated Circuit Peripheral Present [Memory Mapped]	
+		SYSCTL_PPUSB	Unsigned / Readable,Writeable	0x00000001	Universal Serial Bus Peripheral Present [Memory Mapped]	
+		SYSCTL_PPCAN	Unsigned / Readable,Writeable	0x00000003	Controller Area Network Peripheral Present [Memory Mapped]	
+		SYSCTL_PPADC	Unsigned / Readable,Writeable	0x00000003	Analog-to-Digital Converter Peripheral Present [Memory Mapped]	
+		SYSCTL_PPACMP	Unsigned / Readable,Writeable	0x00000001	Analog Comparator Peripheral Present [Memory Mapped]	
+		SYSCTL_PPPWM	Unsigned / Readable,Writeable	0x00000003	Pulse Width Modulator Peripheral Present [Memory Mapped]	
+		SYSCTL_PPQEI	Unsigned / Readable,Writeable	0x00000003	Quadrature Encoder Interface Peripheral Present [Memory Mapped]	
+		SYSCTL_PPEEPROM	Unsigned / Readable,Writeable	0x00000001	EEPROM Peripheral Present [Memory Mapped]	
+		SYSCTL_PPWTIMER	Unsigned / Readable,Writeable	0x0000003F	32/64-Bit Wide General-Purpose Timer Peripheral Present [Memory Mapped]	
+		SYSCTL_SRWD	Unsigned / Readable,Writeable	0x00000000	Watchdog Timer Software Reset [Memory Mapped]	
+		SYSCTL_SRTIMER	Unsigned / Readable,Writeable	0x00000000	16/32-Bit General-Purpose Timer Software Reset [Memory Mapped]	
+		SYSCTL_SRGPIO	Unsigned / Readable,Writeable	0x00000000	General-Purpose Input/Output Software Reset [Memory Mapped]	
+		SYSCTL_SRDMA	Unsigned / Readable,Writeable	0x00000000	Micro Direct Memory Access Software Reset [Memory Mapped]	
+		SYSCTL_SRHIB	Unsigned / Readable,Writeable	0x00000000	Hibernation Software Reset [Memory Mapped]	
+		SYSCTL_SRUART	Unsigned / Readable,Writeable	0x00000000	Universal Asynchronous Receiver/Transmitter Software Reset [Memory Mapped]	
+		SYSCTL_SRSSI	Unsigned / Readable,Writeable	0x00000000	Synchronous Serial Interface Software Reset [Memory Mapped]	
+		SYSCTL_SRI2C	Unsigned / Readable,Writeable	0x00000000	Inter-Integrated Circuit Software Reset [Memory Mapped]	
+		SYSCTL_SRUSB	Unsigned / Readable,Writeable	0x00000000	Universal Serial Bus Software Reset [Memory Mapped]	
+		SYSCTL_SRCAN	Unsigned / Readable,Writeable	0x00000000	Controller Area Network Software Reset [Memory Mapped]	
+		SYSCTL_SRADC	Unsigned / Readable,Writeable	0x00000000	Analog-to-Digital Converter Software Reset [Memory Mapped]	
+		SYSCTL_SRACMP	Unsigned / Readable,Writeable	0x00000000	Analog Comparator Software Reset [Memory Mapped]	
+		SYSCTL_SRPWM	Unsigned / Readable,Writeable	0x00000000	Pulse Width Modulator Software Reset [Memory Mapped]	
+		SYSCTL_SRQEI	Unsigned / Readable,Writeable	0x00000000	Quadrature Encoder Interface Software Reset [Memory Mapped]	
+		SYSCTL_SREEPROM	Unsigned / Readable,Writeable	0x00000000	EEPROM Software Reset [Memory Mapped]	
+		SYSCTL_SRWTIMER	Unsigned / Readable,Writeable	0x00000000	32/64-Bit Wide General-Purpose Timer Software Reset [Memory Mapped]	
+		SYSCTL_RCGCWD	Unsigned / Readable,Writeable	0x00000000	Watchdog Timer Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_RCGCTIMER	Unsigned / Readable,Writeable	0x00000000	16/32-Bit General-Purpose Timer Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_RCGCGPIO	Unsigned / Readable,Writeable	0x00000000	General-Purpose Input/Output Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_RCGCDMA	Unsigned / Readable,Writeable	0x00000000	Micro Direct Memory Access Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_RCGCHIB	Unsigned / Readable,Writeable	0x00000001	Hibernation Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_RCGCUART	Unsigned / Readable,Writeable	0x00000000	Universal Asynchronous Receiver/Transmitter Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_RCGCSSI	Unsigned / Readable,Writeable	0x00000000	Synchronous Serial Interface Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_RCGCI2C	Unsigned / Readable,Writeable	0x00000000	Inter-Integrated Circuit Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_RCGCUSB	Unsigned / Readable,Writeable	0x00000000	Universal Serial Bus Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_RCGCCAN	Unsigned / Readable,Writeable	0x00000000	Controller Area Network Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_RCGCADC	Unsigned / Readable,Writeable	0x00000000	Analog-to-Digital Converter Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_RCGCACMP	Unsigned / Readable,Writeable	0x00000000	Analog Comparator Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_RCGCPWM	Unsigned / Readable,Writeable	0x00000000	Pulse Width Modulator Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_RCGCQEI	Unsigned / Readable,Writeable	0x00000000	Quadrature Encoder Interface Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_RCGCEEPROM	Unsigned / Readable,Writeable	0x00000000	EEPROM Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_RCGCWTIMER	Unsigned / Readable,Writeable	0x00000000	32/64-Bit Wide General-Purpose Timer Run Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_SCGCWD	Unsigned / Readable,Writeable	0x00000000	Watchdog Timer Sleep Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_SCGCTIMER	Unsigned / Readable,Writeable	0x00000000	16/32-Bit General-Purpose Timer Sleep Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_SCGCGPIO	Unsigned / Readable,Writeable	0x00000000	General-Purpose Input/Output Sleep Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_SCGCDMA	Unsigned / Readable,Writeable	0x00000000	Micro Direct Memory Access Sleep Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_SCGCHIB	Unsigned / Readable,Writeable	0x00000001	Hibernation Sleep Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_SCGCUART	Unsigned / Readable,Writeable	0x00000000	Universal Asynchronous Receiver/Transmitter Sleep Mode Clock Gating Control [Memory Mapped]	
+		SYSCTL_SCGCSSI	Unsigned / Readable,Writeable	0x00000000	Synchronous Serial Interface Sleep Mode Clock Gating Control [Memory Mapped]	
+	[100 ... 140]				
+UDMA			Micro Direct Memory Access register addresses	
+NVIC			NVIC register addresses	
+FPU			Cortex M4 FPU Registers	
