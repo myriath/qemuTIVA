@@ -1,5 +1,66 @@
 #include "hw/arm/tm4c123gh6pm/board/include/tm4c123gh6pm.h"
 
+static const uint32_t uart_addr[COUNT_UART] = {
+    0x4000c000, 0x4000d000, 0x4000e000, 0x4000f000,
+    0x40010000, 0x40011000, 0x40012000, 0x40013000
+};
+static const int uart_irq[COUNT_UART] = {5, 6, 33, 59, 60, 61, 62, 63};
+
+static const uint32_t timer_addr[2][6] = {
+    {
+        0x40030000, 0x40031000, 0x40032000,
+        0x40033000, 0x40034000, 0x40035000
+    },
+    {
+        0x40036000, 0x40037000, 0x4004c000,
+        0x4004d000, 0x4004e000, 0x4004f000
+    }
+};
+static const int timer_irq[2][6] = {{19, 21, 23, 35, 70, 92}, {94, 96, 98, 100, 102, 104}};
+
+static const uint32_t gpio_addr[N_GPIOS] = { 
+    0x40004000, 0x40005000, 0x40006000, 0x40007000,
+    0x40024000, 0x40025000
+};
+static const int gpio_irq[N_GPIOS] = {0, 1, 2, 3, 4, 30};
+
+static const uint32_t adc_addr[COUNT_ADC] = {0x40038000, 0x40039000};
+static const int adc_irq[COUNT_ADC][COUNT_SS] = {
+    {14, 15, 16, 17}, {48, 49, 50, 51}
+};
+
+uint8_t gpio_ain_ports[COUNT_AIN] = {
+    GPIO_E, GPIO_E, GPIO_E, GPIO_E, 
+    GPIO_D, GPIO_D, GPIO_D, GPIO_D, 
+    GPIO_E, GPIO_E, GPIO_B, GPIO_B
+};
+
+uint8_t gpio_ain_pins[COUNT_AIN] = {
+    3, 2, 1, 0,
+    3, 2, 1, 0,
+    5, 4, 5, 4
+};
+
+uint8_t gpio_uart_ports[COUNT_UART] = {
+    GPIO_A, GPIO_B, GPIO_D, GPIO_C,
+    GPIO_C, GPIO_E, GPIO_D, GPIO_E
+};
+
+// Only store rx, tx is always +1
+uint8_t gpio_uart_rx_pins[COUNT_UART] = {
+    0, 0, 6, 6, 4, 4, 4, 0
+};
+
+uint8_t timer_ccp_ports[COUNT_TIMERS] = {
+    GPIO_B, GPIO_B, GPIO_B,
+    GPIO_B, GPIO_C, GPIO_C
+};
+
+uint8_t timer_ccp_pins[COUNT_TIMERS] = {
+    6, 4, 0, 2, 0, 2
+};
+
+
 static void ssys_update(ssys_state *s)
 {
     qemu_set_irq(s->irq, (s->ris & s->imc) != 0);
@@ -699,72 +760,8 @@ static void tm4c123gh6pm_sys_instance_init(Object *obj)
     s->sysclk = qdev_init_clock_out(DEVICE(s), "SYSCLK");
 }
 
-
-static void tm4c123gh6pm_init(MachineState *ms)
+static void board_init(MachineState *ms, struct tiva_devices *devices, bool debug)
 {
-    qemu_irq gpio_in[N_GPIOS][N_GPIO_BITS][N_PCTL_OPTS];
-    qemu_irq gpio_out[N_GPIOS][N_GPIO_BITS][N_PCTL_OPTS];
-
-    static const uint32_t uart_addr[COUNT_UART] = {
-        0x4000c000, 0x4000d000, 0x4000e000, 0x4000f000,
-        0x40010000, 0x40011000, 0x40012000, 0x40013000
-    };
-    static const int uart_irq[COUNT_UART] = {5, 6, 33, 59, 60, 61, 62, 63};
-
-    static const uint32_t timer_addr[2][6] = {
-        {
-            0x40030000, 0x40031000, 0x40032000,
-            0x40033000, 0x40034000, 0x40035000
-        },
-        {
-            0x40036000, 0x40037000, 0x4004c000,
-            0x4004d000, 0x4004e000, 0x4004f000
-        }
-    };
-    static const int timer_irq[2][6] = {{19, 21, 23, 35, 70, 92}, {94, 96, 98, 100, 102, 104}};
-
-    static const uint32_t gpio_addr[N_GPIOS] = { 
-        0x40004000, 0x40005000, 0x40006000, 0x40007000,
-        0x40024000, 0x40025000
-    };
-    static const int gpio_irq[N_GPIOS] = {0, 1, 2, 3, 4, 30};
-    
-    static const uint32_t adc_addr[COUNT_ADC] = {0x40038000, 0x40039000};
-    static const int adc_irq[COUNT_ADC][COUNT_SS] = {
-        {14, 15, 16, 17}, {48, 49, 50, 51}
-    };
-
-    uint8_t gpio_ain_ports[COUNT_AIN] = {
-        GPIO_E, GPIO_E, GPIO_E, GPIO_E, 
-        GPIO_D, GPIO_D, GPIO_D, GPIO_D, 
-        GPIO_E, GPIO_E, GPIO_B, GPIO_B
-    };
-
-    uint8_t gpio_ain_pins[COUNT_AIN] = {
-        3, 2, 1, 0,
-        3, 2, 1, 0,
-        5, 4, 5, 4
-    };
-
-    uint8_t gpio_uart_ports[COUNT_UART] = {
-        GPIO_A, GPIO_B, GPIO_D, GPIO_C,
-        GPIO_C, GPIO_E, GPIO_D, GPIO_E
-    };
-
-    // Only store rx, tx is always +1
-    uint8_t gpio_uart_rx_pins[COUNT_UART] = {
-        0, 0, 6, 6, 4, 4, 4, 0
-    };
-
-    uint8_t timer_ccp_ports[COUNT_TIMERS] = {
-        GPIO_B, GPIO_B, GPIO_B,
-        GPIO_B, GPIO_C, GPIO_C
-    };
-
-    uint8_t timer_ccp_pins[COUNT_TIMERS] = {
-        6, 4, 0, 2, 0, 2
-    };
-
     /* Memory map of SoC devices, from
      * Stellaris LM3S6965 Microcontroller Data Sheet (rev I)
      * http://www.ti.com/lit/ds/symlink/lm3s6965.pdf
@@ -844,9 +841,15 @@ static void tm4c123gh6pm_init(MachineState *ms)
      * e0041000 ETM
      */
 
-    DeviceState *gpio_dev[6], *nvic;
+    DeviceState **gpio_dev = devices->gpio;
+    DeviceState *nvic = devices->nvic;
+    DeviceState *ssys_dev = devices->ssys_dev;
+
+    qemu_irq (*gpio_in)[N_GPIO_BITS][N_PCTL_OPTS] = devices->gpio_in;
+    qemu_irq (*gpio_out)[N_GPIO_BITS][N_PCTL_OPTS] = devices->gpio_out;
+
     DeviceState *dev;
-    DeviceState *ssys_dev;
+
     int i;
     int j;
     int k;
@@ -859,6 +862,7 @@ static void tm4c123gh6pm_init(MachineState *ms)
     int sram_size = 32 * 1024;
 
     Object *soc_container = object_new("container");
+    devices->soc = soc_container;
     object_property_add_child(OBJECT(ms), "soc", soc_container);
 
     /* Flash programming is done via the SCU, so pretend it is ROM.  */
@@ -929,7 +933,7 @@ static void tm4c123gh6pm_init(MachineState *ms)
 
     // GPIO
     for (i = 0; i < N_GPIOS; i++) {
-        gpio_dev[i] = gpio_create(gpio_addr[i], qdev_get_gpio_in(nvic, gpio_irq[i]), i);
+        gpio_dev[i] = gpio_create(debug, gpio_addr[i], qdev_get_gpio_in(nvic, gpio_irq[i]), i);
         
         for (j = 0; j < N_GPIO_BITS; j++) {
             for (k = 0; k < N_PCTL_OPTS; k++) {
@@ -941,7 +945,7 @@ static void tm4c123gh6pm_init(MachineState *ms)
         }
     }
 
-    DeviceState *adc[COUNT_ADC];
+    DeviceState **adc = devices->adc;
 
     // ADC
     for (i = 0; i < COUNT_ADC; i++) {
@@ -949,7 +953,7 @@ static void tm4c123gh6pm_init(MachineState *ms)
         for (j = 0; j < COUNT_SS; j++) {
             adc_nvic[j] = qdev_get_gpio_in(nvic, adc_irq[i][j]);
         }
-        adc[i] = adc_create(adc_addr[i], adc_nvic, i);
+        adc[i] = adc_create(debug, adc_addr[i], adc_nvic, i);
     }
 
     // Connect GPIO to ADC
@@ -970,31 +974,20 @@ static void tm4c123gh6pm_init(MachineState *ms)
         // qdev_connect_gpio_out_named(gpio_dev[port], GPIO_NAMED_PINS[pin], F_ANALOG, qdev_get_gpio_in(splitter, 0));
     }
 
-    // Analog test input device
-    dev = sysbus_create_varargs(TYPE_TEST_ANALOG, 0x40002000, NULL);
-    for (i = 0; i < COUNT_AIN; i++) {
-        uint8_t port = gpio_ain_ports[i];
-        uint8_t pin = gpio_ain_pins[i];
-        // Connect analog test device to ains
-        qdev_connect_gpio_out(dev, i, gpio_in[port][pin][F_ANALOG]);
-    }
-
     // Timers
     for (i = 0; i < COUNT_TIMERS; i++) {
-        SysBusDevice *sbd;
-
-        dev = qdev_new(TYPE_TM4_TIMER); // TODO
-        sbd = SYS_BUS_DEVICE(dev);
-        object_property_add_child(soc_container, "gptm[*]", OBJECT(dev));
-        qdev_connect_clock_in(dev, "clk",
-                                qdev_get_clock_out(ssys_dev, "SYSCLK"));
-        sysbus_realize_and_unref(sbd, &error_fatal);
         int width = i / 6;
         int index = i % 6;
-        sysbus_mmio_map(sbd, 0, timer_addr[width][index]);
-        sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(nvic, timer_irq[width][index]));
-        /* TODO: This is incorrect, but we get away with it because
-            the ADC output is only ever pulsed.  */
+        dev = timer_16_create(
+            debug,
+            qdev_get_gpio_in(nvic, timer_irq[width][index]), 
+            timer_addr[width][index], 
+            i,
+            qdev_get_clock_out(ssys_dev, "SYSCLK")
+        );
+        devices->timer[i] = dev;
+        object_property_add_child(soc_container, "gptm[*]", OBJECT(dev));
+
         uint8_t port = timer_ccp_ports[i];
         uint8_t pin = timer_ccp_pins[i];
         qdev_connect_gpio_out(dev, 0, gpio_in[port][pin][F_TIMER]);
@@ -1044,26 +1037,13 @@ static void tm4c123gh6pm_init(MachineState *ms)
             // TODO RTS and CTS
         }
 
-        dev = uart_create(uart_addr[i], i, qdev_get_gpio_in(nvic, uart_irq[i]), 
+        dev = uart_create(debug, uart_addr[i], i, qdev_get_gpio_in(nvic, uart_irq[i]), 
                           tx_gpio, rts, cts, qdev_get_clock_out(ssys_dev, "SYSCLK"));
+        devices->uart[i] = dev;
         // Connect RX pin
         qdev_connect_gpio_out_named(rx_dev, rx_name, rx_irq, qdev_get_gpio_in(dev, 0));
     }
-    // Connect U0 TX to U1 RX for testing
-    gpio_out[GPIO_A][1][F_UART] = gpio_in[GPIO_B][0][F_UART];
 
-    // Connect GPIO outs
-    for (i = 0; i < N_GPIOS; i++) {
-        for (j = 0; j < N_GPIO_BITS; j++) {
-            for (k = 0; k < N_PCTL_OPTS; k++) {
-                if (!gpio_out[i][j][k]) {
-                    continue;
-                }
-                qdev_connect_gpio_out_named(gpio_dev[i], GPIO_NAMED_PINS[j],
-                                            k, gpio_out[i][j][k]);
-            }
-        }
-    }
 
     /* Add dummy regions for the devices we don't implement yet,
      * so guest accesses don't cause unlogged crashes.
@@ -1095,30 +1075,150 @@ static void tm4c123gh6pm_init(MachineState *ms)
     armv7m_load_kernel(ARM_CPU(first_cpu), ms->kernel_filename, 0, flash_size);
 }
 
-
-static void tm4c123gh6pm_machine_init(MachineClass *mc) 
+static void connect_gpios(struct tiva_devices *devices)
 {
+    DeviceState **gpio_dev = devices->gpio;
+    qemu_irq (*gpio_out)[N_GPIO_BITS][N_PCTL_OPTS] = devices->gpio_out;
+
+    int i, j, k;
+    // Connect GPIO outs
+    for (i = 0; i < N_GPIOS; i++) {
+        for (j = 0; j < N_GPIO_BITS; j++) {
+            for (k = 0; k < N_PCTL_OPTS; k++) {
+                if (!gpio_out[i][j][k]) {
+                    continue;
+                }
+                qdev_connect_gpio_out_named(gpio_dev[i], GPIO_NAMED_PINS[j],
+                                            k, gpio_out[i][j][k]);
+            }
+        }
+    }
+}
+
+static void tm4c123gh6pm_init(MachineState *ms, bool debug)
+{
+    int i;
+
+    DeviceState *dev;
+    struct tiva_devices devices;
+
+    board_init(ms, &devices, debug);
+
+    // Analog test input device
+    dev = sysbus_create_varargs(TYPE_TEST_ANALOG, 0x40002000, NULL);
+    for (i = 0; i < COUNT_AIN; i++) {
+        uint8_t port = gpio_ain_ports[i];
+        uint8_t pin = gpio_ain_pins[i];
+        // Connect analog test device to ains
+        qdev_connect_gpio_out(dev, i, devices.gpio_in[port][pin][F_ANALOG]);
+    }
+
+    // Connect U0 TX to U1 RX for testing
+    devices.gpio_out[GPIO_A][1][F_UART] = devices.gpio_in[GPIO_B][0][F_UART];
+
+    connect_gpios(&devices);
+}
+
+static void tm4c123gh6pm_init_debug(MachineState *ms)
+{
+    tm4c123gh6pm_init(ms, true);
+}
+
+static void tm4c123gh6pm_init_nodebug(MachineState *ms)
+{
+    tm4c123gh6pm_init(ms, false);
+}
+
+static void cybot_init(MachineState *ms, bool debug)
+{
+    struct tiva_devices devices;
+
+    board_init(ms, &devices, debug);
+
+    connect_gpios(&devices);
+}
+
+static void cybot_init_debug(MachineState *ms)
+{
+    cybot_init(ms, true);
+}
+
+static void cybot_init_nodebug(MachineState *ms)
+{
+    cybot_init(ms, false);
+}
+
+static void cybot_machine_init_nodebug(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    mc->desc = "CyBot (Cortex-M4F)";
+    mc->init = cybot_init_nodebug;
+    mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m4");
+}
+
+static void cybot_machine_init_debug(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    mc->desc = "CyBot (Cortex-M4F) [Debug]";
+    mc->init = cybot_init_debug;
+    mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m4");
+}
+
+static const TypeInfo cybot_type_nodebug = {
+    .name = MACHINE_TYPE_NAME("cybot"),
+    .parent = TYPE_MACHINE,
+    .class_init = cybot_machine_init_nodebug,
+};
+
+static const TypeInfo cybot_type_debug = {
+    .name = MACHINE_TYPE_NAME("cybot_debug"),
+    .parent = TYPE_MACHINE,
+    .class_init = cybot_machine_init_debug,
+};
+
+static void cybot_machine_init_register_types(void)
+{
+    type_register_static(&cybot_type_nodebug);
+    type_register_static(&cybot_type_debug);
+}
+type_init(cybot_machine_init_register_types)
+
+static void tm4c123gh6pm_machine_init_nodebug(ObjectClass *oc, void *data) 
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
     mc->desc = "Tiva TM4C123GH6PM (Cortex-M4F)";
-    mc->init = tm4c123gh6pm_init;
+    mc->init = tm4c123gh6pm_init_nodebug;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m4"); // TODO: cortex-m4f
 }
 
-static void tm4c123gh6pm_class_init(ObjectClass *oc, void *data)
+static void tm4c123gh6pm_machine_init_debug(ObjectClass *oc, void *data) 
 {
     MachineClass *mc = MACHINE_CLASS(oc);
-    tm4c123gh6pm_machine_init(mc);
+    mc->desc = "Tiva TM4C123GH6PM (Cortex-M4F) [Debug]";
+    mc->init = tm4c123gh6pm_init_debug;
+    mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m4"); // TODO: cortex-m4f
 }
 
-static const TypeInfo tm4c123gh6pm_type = {
+static const TypeInfo tm4c123gh6pm_type_nodebug = {
     .name = MACHINE_TYPE_NAME("tm4c123gh6pm"),
     .parent = TYPE_MACHINE,
-    .class_init = tm4c123gh6pm_class_init,
+    .class_init = tm4c123gh6pm_machine_init_nodebug,
+};
+
+static const TypeInfo tm4c123gh6pm_type_debug = {
+    .name = MACHINE_TYPE_NAME("tm4c123gh6pm_debug"),
+    .parent = TYPE_MACHINE,
+    .class_init = tm4c123gh6pm_machine_init_debug,
 };
 
 static void tm4c123gh6pm_machine_init_register_types(void)
 {
-    type_register_static(&tm4c123gh6pm_type);
+    type_register_static(&tm4c123gh6pm_type_nodebug);
+    type_register_static(&tm4c123gh6pm_type_debug);
 }
 type_init(tm4c123gh6pm_machine_init_register_types)
 

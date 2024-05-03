@@ -170,11 +170,12 @@ struct GPIOState {
     // Inputs go from TM4 board to GPIO controller
     qemu_irq inputs[N_GPIO_TABLE];
     uint8_t port;
+    bool debug;
 };
 
 #define TYPE_TM4_GPIO "tm4-gpio"
 OBJECT_DECLARE_SIMPLE_TYPE(GPIOState, TM4_GPIO)
 
-DeviceState *gpio_create(hwaddr addr, qemu_irq nvic_irq, uint8_t port);
+DeviceState *gpio_create(bool debug, hwaddr addr, qemu_irq nvic_irq, uint8_t port);
 
 #endif

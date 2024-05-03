@@ -1,6 +1,6 @@
 #include "hw/arm/tm4c123gh6pm/board/include/gpio.h"
 
-DeviceState *gpio_create(hwaddr addr, qemu_irq nvic_irq, uint8_t port)
+DeviceState *gpio_create(bool debug, hwaddr addr, qemu_irq nvic_irq, uint8_t port)
 {
     // Needed to set a property before realization, this
     // is just the internals of sysbus_create_simple()
@@ -8,6 +8,7 @@ DeviceState *gpio_create(hwaddr addr, qemu_irq nvic_irq, uint8_t port)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
     qdev_prop_set_uint8(dev, "port", port);
+    qdev_prop_set_bit(dev, "debug", debug);
     sysbus_realize_and_unref(sbd, &error_fatal);
 
     sysbus_mmio_map(sbd, 0, addr);
@@ -562,6 +563,7 @@ static Property gpio_props[] =
     DEFINE_PROP_UINT32("pur", GPIOState, pur, 0xff),
     DEFINE_PROP_UINT32("pdr", GPIOState, pdr, 0x0),
     DEFINE_PROP_UINT8("port", GPIOState, port, -1),
+    DEFINE_PROP_BOOL("debug", GPIOState, debug, false),
     DEFINE_PROP_END_OF_LIST()
 };
 

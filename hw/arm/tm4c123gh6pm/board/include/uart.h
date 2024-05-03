@@ -115,11 +115,12 @@ struct UARTState {
 
     const uint8_t *id;
     const uint8_t uart;
+    bool debug;
 };
 
 #define TYPE_TM4_UART "tm4-uart"
 OBJECT_DECLARE_SIMPLE_TYPE(UARTState, TM4_UART)
 
-DeviceState *uart_create(hwaddr addr, uint8_t uart, qemu_irq nvic_irq, qemu_irq tx_gpio, qemu_irq rts, qemu_irq cts, Clock *clk);
+DeviceState *uart_create(bool debug, hwaddr addr, uint8_t uart, qemu_irq nvic_irq, qemu_irq tx_gpio, qemu_irq rts, qemu_irq cts, Clock *clk);
 
 #endif

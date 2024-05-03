@@ -236,12 +236,13 @@ static void uart_tick_read(void *opaque)
 
 }
 
-DeviceState *uart_create(hwaddr addr, uint8_t uart, qemu_irq nvic_irq, qemu_irq tx_gpio, qemu_irq rts, qemu_irq cts, Clock *clk)
+DeviceState *uart_create(bool debug, hwaddr addr, uint8_t uart, qemu_irq nvic_irq, qemu_irq tx_gpio, qemu_irq rts, qemu_irq cts, Clock *clk)
 {
     DeviceState *dev = qdev_new(TYPE_TM4_UART);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
     qdev_prop_set_uint8(dev, "uart", uart);
+    qdev_prop_set_bit(dev, "debug", debug);
     qdev_connect_clock_in(dev, "clk", clk);
     sysbus_realize_and_unref(sbd, &error_fatal);
     sysbus_mmio_map(sbd, 0, addr);
@@ -589,6 +590,7 @@ static Property uart_properties[] =
 {
     DEFINE_PROP_UINT8("uart", UARTState, uart, 0),
     DEFINE_PROP_BOOL("migrate-clk", UARTState, migrate_clk, true),
+    DEFINE_PROP_BOOL("debug", UARTState, debug, false),
     DEFINE_PROP_END_OF_LIST()
 };
 

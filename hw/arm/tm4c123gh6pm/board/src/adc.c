@@ -1,12 +1,13 @@
 #include "hw/arm/tm4c123gh6pm/board/include/adc.h"
 
-DeviceState *adc_create(hwaddr addr, qemu_irq *nvic_irq, uint8_t adc)
+DeviceState *adc_create(bool debug, hwaddr addr, qemu_irq *nvic_irq, uint8_t adc)
 {
     // Also the internals of sysbus_create_varargs because we need the adc prop set
     DeviceState *dev = qdev_new(TYPE_TM4_ADC);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
      
     qdev_prop_set_uint8(dev, "adc", adc);
+    qdev_prop_set_bit(dev, "debug", debug);
     sysbus_realize_and_unref(sbd, &error_fatal);
 
     sysbus_mmio_map(sbd, 0, addr);
@@ -442,6 +443,7 @@ static void adc_init(Object *obj)
 static Property adc_properties[] = 
 {
     DEFINE_PROP_UINT8("adc", ADCState, adc, 0),
+    DEFINE_PROP_BOOL("debug", ADCState, debug, false),
     DEFINE_PROP_END_OF_LIST()
 };
 

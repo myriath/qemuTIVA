@@ -62,6 +62,7 @@ struct ADCState {
     uint32_t ain[12];
 
     uint8_t adc;
+    bool debug;
 };
 
 #define TYPE_TM4_ADC "tm4-adc"
@@ -69,6 +70,6 @@ struct ADCState {
 typedef struct ADCState ADCState;
 DECLARE_INSTANCE_CHECKER(ADCState, TM4_ADC, TYPE_TM4_ADC)
 
-DeviceState *adc_create(hwaddr addr, qemu_irq *nvic_irq, uint8_t adc);
+DeviceState *adc_create(bool debug, hwaddr addr, qemu_irq *nvic_irq, uint8_t adc);
 
 #endif

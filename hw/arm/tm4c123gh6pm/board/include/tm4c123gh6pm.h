@@ -50,6 +50,20 @@
 #define NUM_IRQ_LINES 138
 #define NUM_PRIO_BITS 3
 
+struct tiva_devices {
+    DeviceState *timer[COUNT_TIMERS];
+    DeviceState *gpio[N_GPIOS];
+    DeviceState *uart[COUNT_UART];
+    DeviceState *adc[COUNT_ADC];
+
+    Object *soc;
+    DeviceState *nvic;
+    DeviceState *ssys_dev;
+
+    qemu_irq gpio_in[N_GPIOS][N_GPIO_BITS][N_PCTL_OPTS];
+    qemu_irq gpio_out[N_GPIOS][N_GPIO_BITS][N_PCTL_OPTS];
+};
+
 struct ssys_state {
     SysBusDevice parent_obj;
 

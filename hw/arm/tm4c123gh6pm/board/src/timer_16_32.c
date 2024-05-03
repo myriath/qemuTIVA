@@ -1,5 +1,22 @@
 #include "hw/arm/tm4c123gh6pm/board/include/timer_16_32.h"
 
+DeviceState *timer_16_create(bool debug, qemu_irq nvic, hwaddr address, uint8_t timer, Clock *clk)
+{
+    DeviceState *dev = qdev_new(TYPE_TM4_TIMER);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    qdev_connect_clock_in(dev, "clk", clk);
+
+    qdev_prop_set_uint8(dev, "timer", timer);
+    qdev_prop_set_bit(dev, "debug", debug);
+
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_mmio_map(sbd, 0, address);
+
+    sysbus_connect_irq(sbd, 0, nvic);
+
+    return dev;
+}
+
 static bool is_enabled(GPTMState *s, int timer)
 {
     return s->ctl & (timer ? GPTM_CTL_TBEN : GPTM_CTL_TAEN);
@@ -716,9 +733,18 @@ static void gptm_realize(DeviceState *dev, Error **errp)
     s->timer[1] = timer_new_ns(QEMU_CLOCK_VIRTUAL, timer_tick, &s->opaque[1]);
 }
 
+static Property timer_properties[] = 
+{
+    DEFINE_PROP_UINT8("timer", GPTMState, timer_num, 0),
+    DEFINE_PROP_BOOL("debug", GPTMState, debug, false),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void gptm_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+
+    device_class_set_props(dc, timer_properties);
 
     dc->vmsd = &vmstate_gptm;
     dc->realize = gptm_realize;

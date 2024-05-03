@@ -19,6 +19,7 @@
 #include "qom/object.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "hw/clock.h"
 
 #define GPTM_A              0
@@ -120,7 +121,6 @@ struct GPTMState {
     uint32_t temp_prescale_match[2];
     uint32_t value[2];
 
-    // Properties
     uint32_t rtcpd;
     uint32_t prescale_snapshot[2];
     uint32_t prescale_value[2];
@@ -145,9 +145,15 @@ struct GPTMState {
     qemu_irq ccp_gpio[2];
     qemu_irq nvic_irq;
     Clock *clk;
+
+    // Properties
+    uint8_t timer_num;
+    bool debug;
 };
 
 #define TYPE_TM4_TIMER "tm4-timer"
 OBJECT_DECLARE_SIMPLE_TYPE(GPTMState, TM4_TIMER)
+
+DeviceState *timer_16_create(bool debug, qemu_irq nvic, hwaddr address, uint8_t timer, Clock *clk);
 
 #endif
