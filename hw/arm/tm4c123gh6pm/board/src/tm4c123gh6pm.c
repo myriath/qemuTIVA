@@ -986,7 +986,6 @@ static void board_init(MachineState *ms, struct tiva_devices *devices, bool debu
             qdev_get_clock_out(ssys_dev, "SYSCLK")
         );
         devices->timer[i] = dev;
-        object_property_add_child(soc_container, "gptm[*]", OBJECT(dev));
 
         uint8_t port = timer_ccp_ports[i];
         uint8_t pin = timer_ccp_pins[i];

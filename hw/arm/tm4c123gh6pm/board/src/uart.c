@@ -151,7 +151,9 @@ static void parse_frame(UARTState *s)
         goto frame_error;
     }
 
-    printf("[UART %d RX FRAME] 0x%.3X\n", s->uart, s->receive_frame);
+    if (s->debug) {
+        printf("[UART %d RX FRAME] 0x%.3X\n", s->uart, s->receive_frame);
+    }
     uart_put_fifo_read(s, word);
     return;
     
@@ -366,7 +368,9 @@ static void uart_send(UARTState *s) {
         wlen++;
     }
 
-    printf("[UART %d TX FRAME] 0x%.3X\n", s->uart, word);
+    if (s->debug) {
+        printf("[UART %d TX FRAME] 0x%.3X\n", s->uart, word);
+    }
     uart_put_fifo_write(s, word);
 }
 
@@ -497,7 +501,9 @@ static void uart_write(void *opaque, hwaddr offset, uint64_t value, unsigned siz
             qemu_log_mask(LOG_GUEST_ERROR, "uart_write: Bad offset 0x%x\n", (int)offset);
     }
 
-    printf("[UART %d %s] 0x%.8X\n", s->uart, reg, output);
+    if (s->debug) {
+        printf("[UART %d %s] 0x%.8X\n", s->uart, reg, output);
+    }
 }
 
 

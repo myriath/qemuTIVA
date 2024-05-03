@@ -345,7 +345,9 @@ static void adc_write(void *opaque, hwaddr offset,
     }
     adc_update_nvic(s);
     print_ret:
-    printf("[ADC%d %s] 0x%.8X\n", s->adc, reg, output);
+    if (s->debug) {
+        printf("[ADC%d %s] 0x%.8X\n", s->adc, reg, output);
+    }
 }
 
 // ADC iomem read / write operations

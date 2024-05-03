@@ -462,7 +462,9 @@ static void gpio_write(void *opaque, hwaddr offset,
         qemu_log_mask(LOG_GUEST_ERROR, "gpio_write: Bad offset %x\n", (int)offset);
     }
 
-    printf("[GPIO %c %s] 0x%.2X\n", s->port + 'A', reg, output);
+    if (s->debug) {
+        printf("[GPIO %c %s] 0x%.2X\n", s->port + 'A', reg, output);
+    }
     gpio_update(s);
 }
 

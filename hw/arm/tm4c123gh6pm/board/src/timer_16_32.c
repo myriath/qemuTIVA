@@ -577,6 +577,9 @@ static void gptm_write(void *opaque, hwaddr offset,
     GPTMState *s = opaque;
     uint32_t oldval;
 
+    uint32_t output = value;
+    const char *reg = "BAD OFFSET";
+
     /*
      * The timers should be disabled before changing the configuration.
      * We take advantage of this and defer everything until the timer
@@ -584,15 +587,19 @@ static void gptm_write(void *opaque, hwaddr offset,
      */
     switch (offset) {
     case 0x000: /* CFG */
+        reg = "CFG";
         s->cfg = value;
         break;
     case 0x004: /* TAMR */
+        reg = "TAMR";
         s->mode[0] = value;
         break;
     case 0x008: /* TBMR */
+        reg = "TBMR";
         s->mode[1] = value;
         break;
     case 0x00c: /* CTL */
+        reg = "CTL";
         oldval = s->ctl;
         s->ctl = value;
         /* TODO: Implement pause.  */
@@ -614,49 +621,67 @@ static void gptm_write(void *opaque, hwaddr offset,
         }
         break;
     case 0x010:
+        reg = "SYNC";
         s->sync = value;
         break;
     case 0x018: /* IMR */
+        reg = "IMR";
         s->imr = value;
         gptm_update_irq(s);
         break;
     case 0x024: /* CR */
+        reg = "RIS";
         s->ris &= ~value;
         break;
     case 0x028: /* TAILR */
+        reg = "TAILR";
         s->temp_load[0] = value & 0xffff;
         break;
     case 0x02c: /* TBILR */
+        reg = "TBILR";
         s->temp_load[1] = value & 0xffff;
         break;
     case 0x030: /* TAMATCHR */
+        reg = "TAMATCHR";
         s->temp_match[0] = value & 0xffff;
         break;
     case 0x034: /* TBMATCHR */
+        reg = "TBMATCHR";
         s->temp_match[1] = value & 0xffff;
         break;
     case 0x038: /* TAPR */
+        reg = "TAPR";
         s->temp_prescale[0] = value & 0xff;
         break;
     case 0x03c: /* TBPR */
+        reg = "TBPR";
         s->temp_prescale[1] = value & 0xff;
         break;
     case 0x040: /* TAPMR */
+        reg = "TAPMR";
         s->temp_prescale_match[0] = value & 0xff;
         break;
     case 0x044: /* TBPMR */
+        reg = "TBPMR";
         s->temp_prescale_match[1] = value & 0xff;
         break;
     case 0x050: // TAV
+        reg = "TAV";
         // TODO Writes to TAR
         break;
     case 0x054: // TBV
+        reg = "TBV";
         // TODO Writes to TBR
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "GPTM: write at bad offset 0x%x\n", (int)offset);
     }
+
+    if (s->debug) {
+        printf("[TIMER %d %s] 0x%8X\n", s->timer_num, reg, output);
+    }
+
     gptm_update_irq(s);
 }
 
