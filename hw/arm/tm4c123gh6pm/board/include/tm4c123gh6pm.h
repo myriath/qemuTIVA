@@ -2,6 +2,7 @@
 #define TM4_H_
 
 #include "joiner.h"
+#include "servo.h"
 #include "gpio.h"
 #include "timer_16_32.h"
 #include "adc.h"

@@ -1,5 +1,5 @@
-#ifndef TEST_ANALOG_IN_H_
-#define TEST_ANALOG_IN_H_
+#ifndef TM4_SERVO_H_
+#define TM4_SERVO_H_
 
 #include "qemu/osdep.h"
 #include "hw/irq.h"
@@ -18,7 +18,7 @@ struct ServoState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem; 
-    uint32_t pulse_width;
+    uint64_t pulse_width;
 
     uint64_t start_ns;
     uint64_t pulse_end_ns;
@@ -38,5 +38,7 @@ struct ServoState {
 
 typedef struct ServoState ServoState;
 DECLARE_INSTANCE_CHECKER(ServoState, TM4_SERVO, TYPE_SERVO)
+
+DeviceState *servo_create(bool debug, hwaddr addr, Clock *clk);
 
 #endif

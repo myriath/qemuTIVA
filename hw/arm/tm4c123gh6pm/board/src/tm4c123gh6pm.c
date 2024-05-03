@@ -842,8 +842,8 @@ static void board_init(MachineState *ms, struct tiva_devices *devices, bool debu
      */
 
     DeviceState **gpio_dev = devices->gpio;
-    DeviceState *nvic = devices->nvic;
-    DeviceState *ssys_dev = devices->ssys_dev;
+    DeviceState **nvic = &devices->nvic;
+    DeviceState **ssys_dev = &devices->ssys_dev;
 
     qemu_irq (*gpio_in)[N_GPIO_BITS][N_PCTL_OPTS] = devices->gpio_in;
     qemu_irq (*gpio_out)[N_GPIO_BITS][N_PCTL_OPTS] = devices->gpio_out;
@@ -878,62 +878,62 @@ static void board_init(MachineState *ms, struct tiva_devices *devices, bool debu
      * Create the system-registers object early, because we will
      * need its sysclk output.
      */
-    ssys_dev = qdev_new(TYPE_TM4_SYS);
-    object_property_add_child(soc_container, "sys", OBJECT(ssys_dev));
+    *ssys_dev = qdev_new(TYPE_TM4_SYS);
+    object_property_add_child(soc_container, "sys", OBJECT(*ssys_dev));
 
     // Values fetched from CyBot
-    qdev_prop_set_uint32(ssys_dev, "did0", 0x18050102);
-    qdev_prop_set_uint32(ssys_dev, "did1", 0x10a1606e);
-    qdev_prop_set_uint32(ssys_dev, "dc0",  0x007f007f);
-    qdev_prop_set_uint32(ssys_dev, "dc1",  0x13332fff);
-    qdev_prop_set_uint32(ssys_dev, "dc2",  0x030ff337);
-    qdev_prop_set_uint32(ssys_dev, "dc3",  0xbfff8fff);
-    qdev_prop_set_uint32(ssys_dev, "dc4",  0x0004f03f);
-    qdev_prop_set_uint32(ssys_dev, "dc5",  0x013000ff);
-    qdev_prop_set_uint32(ssys_dev, "dc6",  0x00000013);
-    qdev_prop_set_uint32(ssys_dev, "dc7",  0xffffffff);
-    qdev_prop_set_uint32(ssys_dev, "dc8",  0x0fff0fff);
-    qdev_prop_set_uint32(ssys_dev, "dc9",  0x00ff00ff);
-    qdev_prop_set_uint32(ssys_dev, "ppwd", 0x3);
-    qdev_prop_set_uint32(ssys_dev, "pptimer", 0x3f);
-    qdev_prop_set_uint32(ssys_dev, "ppgpio", 0x3f);
-    qdev_prop_set_uint32(ssys_dev, "ppdma", 0x1);
-    qdev_prop_set_uint32(ssys_dev, "pphib", 0x1);
-    qdev_prop_set_uint32(ssys_dev, "ppuart", 0xff);
-    qdev_prop_set_uint32(ssys_dev, "ppssi", 0xf);
-    qdev_prop_set_uint32(ssys_dev, "ppi2c", 0xf);
-    qdev_prop_set_uint32(ssys_dev, "ppusb", 0x1);
-    qdev_prop_set_uint32(ssys_dev, "ppcan", 0x3);
-    qdev_prop_set_uint32(ssys_dev, "ppadc", 0x3);
-    qdev_prop_set_uint32(ssys_dev, "ppacmp", 0x1);
-    qdev_prop_set_uint32(ssys_dev, "pppwm", 0x3);
-    qdev_prop_set_uint32(ssys_dev, "ppqei", 0x3);
-    qdev_prop_set_uint32(ssys_dev, "ppeeprom", 0x1);
-    qdev_prop_set_uint32(ssys_dev, "ppwtimer", 0x3f);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(ssys_dev), &error_fatal);
+    qdev_prop_set_uint32(*ssys_dev, "did0", 0x18050102);
+    qdev_prop_set_uint32(*ssys_dev, "did1", 0x10a1606e);
+    qdev_prop_set_uint32(*ssys_dev, "dc0",  0x007f007f);
+    qdev_prop_set_uint32(*ssys_dev, "dc1",  0x13332fff);
+    qdev_prop_set_uint32(*ssys_dev, "dc2",  0x030ff337);
+    qdev_prop_set_uint32(*ssys_dev, "dc3",  0xbfff8fff);
+    qdev_prop_set_uint32(*ssys_dev, "dc4",  0x0004f03f);
+    qdev_prop_set_uint32(*ssys_dev, "dc5",  0x013000ff);
+    qdev_prop_set_uint32(*ssys_dev, "dc6",  0x00000013);
+    qdev_prop_set_uint32(*ssys_dev, "dc7",  0xffffffff);
+    qdev_prop_set_uint32(*ssys_dev, "dc8",  0x0fff0fff);
+    qdev_prop_set_uint32(*ssys_dev, "dc9",  0x00ff00ff);
+    qdev_prop_set_uint32(*ssys_dev, "ppwd", 0x3);
+    qdev_prop_set_uint32(*ssys_dev, "pptimer", 0x3f);
+    qdev_prop_set_uint32(*ssys_dev, "ppgpio", 0x3f);
+    qdev_prop_set_uint32(*ssys_dev, "ppdma", 0x1);
+    qdev_prop_set_uint32(*ssys_dev, "pphib", 0x1);
+    qdev_prop_set_uint32(*ssys_dev, "ppuart", 0xff);
+    qdev_prop_set_uint32(*ssys_dev, "ppssi", 0xf);
+    qdev_prop_set_uint32(*ssys_dev, "ppi2c", 0xf);
+    qdev_prop_set_uint32(*ssys_dev, "ppusb", 0x1);
+    qdev_prop_set_uint32(*ssys_dev, "ppcan", 0x3);
+    qdev_prop_set_uint32(*ssys_dev, "ppadc", 0x3);
+    qdev_prop_set_uint32(*ssys_dev, "ppacmp", 0x1);
+    qdev_prop_set_uint32(*ssys_dev, "pppwm", 0x3);
+    qdev_prop_set_uint32(*ssys_dev, "ppqei", 0x3);
+    qdev_prop_set_uint32(*ssys_dev, "ppeeprom", 0x1);
+    qdev_prop_set_uint32(*ssys_dev, "ppwtimer", 0x3f);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(*ssys_dev), &error_fatal);
 
-    nvic = qdev_new(TYPE_ARMV7M);
-    object_property_add_child(soc_container, "v7m", OBJECT(nvic));
-    qdev_prop_set_uint32(nvic, "num-irq", NUM_IRQ_LINES);
-    qdev_prop_set_uint8(nvic, "num-prio-bits", NUM_PRIO_BITS);
-    qdev_prop_set_string(nvic, "cpu-type", ms->cpu_type);
-    qdev_prop_set_bit(nvic, "enable-bitband", true);
-    qdev_connect_clock_in(nvic, "cpuclk",
-                          qdev_get_clock_out(ssys_dev, "SYSCLK"));
+    *nvic = qdev_new(TYPE_ARMV7M);
+    object_property_add_child(soc_container, "v7m", OBJECT(*nvic));
+    qdev_prop_set_uint32(*nvic, "num-irq", NUM_IRQ_LINES);
+    qdev_prop_set_uint8(*nvic, "num-prio-bits", NUM_PRIO_BITS);
+    qdev_prop_set_string(*nvic, "cpu-type", ms->cpu_type);
+    qdev_prop_set_bit(*nvic, "enable-bitband", true);
+    qdev_connect_clock_in(*nvic, "cpuclk",
+                          qdev_get_clock_out(*ssys_dev, "SYSCLK"));
     /* This SoC does not connect the systick reference clock */
-    object_property_set_link(OBJECT(nvic), "memory",
+    object_property_set_link(OBJECT(*nvic), "memory",
                              OBJECT(get_system_memory()), &error_abort);
     /* This will exit with an error if the user passed us a bad cpu_type */
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(nvic), &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(*nvic), &error_fatal);
 
     /* Now we can wire up the IRQ and MMIO of the system registers */
-    sysbus_mmio_map(SYS_BUS_DEVICE(ssys_dev), 0, 0x400fe000);
-    sysbus_connect_irq(SYS_BUS_DEVICE(ssys_dev), 0, qdev_get_gpio_in(nvic, 28)); // Interrupt 28: System Control
+    sysbus_mmio_map(SYS_BUS_DEVICE(*ssys_dev), 0, 0x400fe000);
+    sysbus_connect_irq(SYS_BUS_DEVICE(*ssys_dev), 0, qdev_get_gpio_in(*nvic, 28)); // Interrupt 28: System Control
 
 
     // GPIO
     for (i = 0; i < N_GPIOS; i++) {
-        gpio_dev[i] = gpio_create(debug, gpio_addr[i], qdev_get_gpio_in(nvic, gpio_irq[i]), i);
+        gpio_dev[i] = gpio_create(debug, gpio_addr[i], qdev_get_gpio_in(*nvic, gpio_irq[i]), i);
         
         for (j = 0; j < N_GPIO_BITS; j++) {
             for (k = 0; k < N_PCTL_OPTS; k++) {
@@ -951,7 +951,7 @@ static void board_init(MachineState *ms, struct tiva_devices *devices, bool debu
     for (i = 0; i < COUNT_ADC; i++) {
         qemu_irq adc_nvic[COUNT_SS];
         for (j = 0; j < COUNT_SS; j++) {
-            adc_nvic[j] = qdev_get_gpio_in(nvic, adc_irq[i][j]);
+            adc_nvic[j] = qdev_get_gpio_in(*nvic, adc_irq[i][j]);
         }
         adc[i] = adc_create(debug, adc_addr[i], adc_nvic, i);
     }
@@ -980,10 +980,10 @@ static void board_init(MachineState *ms, struct tiva_devices *devices, bool debu
         int index = i % 6;
         dev = timer_16_create(
             debug,
-            qdev_get_gpio_in(nvic, timer_irq[width][index]), 
+            qdev_get_gpio_in(*nvic, timer_irq[width][index]), 
             timer_addr[width][index], 
             i,
-            qdev_get_clock_out(ssys_dev, "SYSCLK")
+            qdev_get_clock_out(*ssys_dev, "SYSCLK")
         );
         devices->timer[i] = dev;
 
@@ -1036,8 +1036,8 @@ static void board_init(MachineState *ms, struct tiva_devices *devices, bool debu
             // TODO RTS and CTS
         }
 
-        dev = uart_create(debug, uart_addr[i], i, qdev_get_gpio_in(nvic, uart_irq[i]), 
-                          tx_gpio, rts, cts, qdev_get_clock_out(ssys_dev, "SYSCLK"));
+        dev = uart_create(debug, uart_addr[i], i, qdev_get_gpio_in(*nvic, uart_irq[i]), 
+                          tx_gpio, rts, cts, qdev_get_clock_out(*ssys_dev, "SYSCLK"));
         devices->uart[i] = dev;
         // Connect RX pin
         qdev_connect_gpio_out_named(rx_dev, rx_name, rx_irq, qdev_get_gpio_in(dev, 0));
@@ -1130,9 +1130,14 @@ static void tm4c123gh6pm_init_nodebug(MachineState *ms)
 
 static void cybot_init(MachineState *ms, bool debug)
 {
+    DeviceState *dev;
     struct tiva_devices devices;
 
     board_init(ms, &devices, debug);
+
+    dev = servo_create(debug, 0x50000000, qdev_get_clock_out(devices.ssys_dev, "SYSCLK"));
+    // Connect servo to GPIO B pin 5 (from cybot baseboard ref) [timer 1 b]
+    devices.gpio_out[GPIO_B][5][F_TIMER] = qdev_get_gpio_in(dev, 0);
 
     connect_gpios(&devices);
 }

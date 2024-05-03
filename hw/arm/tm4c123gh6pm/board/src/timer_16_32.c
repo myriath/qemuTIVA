@@ -38,7 +38,7 @@ static bool is_pwm(GPTMState *s, int timer)
 
 static uint64_t get_prescaled(uint32_t prescale, uint32_t base) 
 {
-    return (base & 0xffff) | ((prescale << 16) & 0xff);
+    return (base & 0xffff) | ((prescale & 0xff) << 16);
 }
 
 static uint64_t get_time(GPTMState *s, int timer) 
@@ -48,7 +48,7 @@ static uint64_t get_time(GPTMState *s, int timer)
     }
 
     if (is_enabled(s, timer)) {
-        return (s->start[timer] - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)) / s->ns_per_cycle;
+        return clock_ticks_to_ns(s->clk, s->start[timer] - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
     }
     return s->time[timer];
 }
@@ -110,8 +110,8 @@ static void reload(GPTMState *s, int timer, bool reset)
 
     bool oneshot = s->mode[timer] & 1;
 
-    uint32_t load = get_load(s, timer);
-    uint32_t match = get_match(s, timer);
+    uint64_t load = get_load(s, timer);
+    uint64_t match = get_match(s, timer);
 
     uint64_t ns;
     if (match > load) {
@@ -119,20 +119,21 @@ static void reload(GPTMState *s, int timer, bool reset)
             disable_timer(s, timer, 0);
             return;
         }
-        ns = load * s->ns_per_cycle;
+        ns = clock_ticks_to_ns(s->clk, load);
     } else if (reset) {
-        ns = (load - match) * s->ns_per_cycle;
+        ns = clock_ticks_to_ns(s->clk, load - match);
     } else if (s->matched[timer]) {
         if (oneshot) {
             disable_timer(s, timer, 0);
             return;
         }
-        ns = (load - match) * s->ns_per_cycle;
+        ns = clock_ticks_to_ns(s->clk, load - match);
     } else {
         s->start[timer] = tick;
         s->ris |= timer == GPTM_A ? GPTM_INT_TATO_M : GPTM_INT_TBTO_M;
-        ns = match * s->ns_per_cycle;
+        ns = clock_ticks_to_ns(s->clk, match);
     }
+    printf("Timer waiting %ld ns\n", ns);
 
     if (!reset) {
         s->matched[timer] = !s->matched[timer];
@@ -636,34 +637,42 @@ static void gptm_write(void *opaque, hwaddr offset,
     case 0x028: /* TAILR */
         reg = "TAILR";
         s->temp_load[0] = value & 0xffff;
+        s->settings_changed = true;
         break;
     case 0x02c: /* TBILR */
         reg = "TBILR";
         s->temp_load[1] = value & 0xffff;
+        s->settings_changed = true;
         break;
     case 0x030: /* TAMATCHR */
         reg = "TAMATCHR";
         s->temp_match[0] = value & 0xffff;
+        s->settings_changed = true;
         break;
     case 0x034: /* TBMATCHR */
         reg = "TBMATCHR";
         s->temp_match[1] = value & 0xffff;
+        s->settings_changed = true;
         break;
     case 0x038: /* TAPR */
         reg = "TAPR";
         s->temp_prescale[0] = value & 0xff;
+        s->settings_changed = true;
         break;
     case 0x03c: /* TBPR */
         reg = "TBPR";
         s->temp_prescale[1] = value & 0xff;
+        s->settings_changed = true;
         break;
     case 0x040: /* TAPMR */
         reg = "TAPMR";
         s->temp_prescale_match[0] = value & 0xff;
+        s->settings_changed = true;
         break;
     case 0x044: /* TBPMR */
         reg = "TBPMR";
         s->temp_prescale_match[1] = value & 0xff;
+        s->settings_changed = true;
         break;
     case 0x050: // TAV
         reg = "TAV";
@@ -679,7 +688,7 @@ static void gptm_write(void *opaque, hwaddr offset,
     }
 
     if (s->debug) {
-        printf("[TIMER %d %s] 0x%8X\n", s->timer_num, reg, output);
+        printf("[TIMER %d %s] 0x%08X\n", s->timer_num, reg, output);
     }
 
     gptm_update_irq(s);
@@ -752,7 +761,6 @@ static void gptm_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    s->ns_per_cycle = clock_ticks_to_ns(s->clk, 1);
 
     s->timer[0] = timer_new_ns(QEMU_CLOCK_VIRTUAL, timer_tick, &s->opaque[0]);
     s->timer[1] = timer_new_ns(QEMU_CLOCK_VIRTUAL, timer_tick, &s->opaque[1]);

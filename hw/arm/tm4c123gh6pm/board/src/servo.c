@@ -1,5 +1,19 @@
 #include "hw/arm/tm4c123gh6pm/board/include/servo.h"
 
+DeviceState *servo_create(bool debug, hwaddr addr, Clock *clk)
+{
+    DeviceState *dev = qdev_new(TYPE_SERVO);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+     
+    qdev_prop_set_bit(dev, "debug", debug);
+    qdev_connect_clock_in(dev, "clk", clk);
+    sysbus_realize_and_unref(sbd, &error_fatal);
+
+    sysbus_mmio_map(sbd, 0, addr);
+
+    return dev;
+}
+
 static void reload(ServoState *s, bool reset)
 {
     uint64_t tick;
@@ -10,7 +24,9 @@ static void reload(ServoState *s, bool reset)
     }
 
     s->start_ns = tick;
+    s->pulse_end_ns = tick;
     tick += s->pulse_width;
+    printf("Servo waiting %ld ns\n", s->pulse_width);
     s->tick = tick;
 
     timer_mod(s->timer, tick);
@@ -30,7 +46,6 @@ static void tick(void *opaque)
         printf("[SERVO DUTY] %d%%\n", duty);
     }
     
-    s->pulse_end_ns = 0;
     reload(s, false);
 }
 
@@ -43,7 +58,7 @@ static void handle_signal(void *opaque, int irq, int level)
         s->started = true;
     }
     // Only count the first time level goes 0
-    if (level == 0 && !s->pulse_end_ns) {
+    if (level == 0 && s->pulse_end_ns == s->start_ns) {
         s->pulse_end_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     }
 }
@@ -54,7 +69,7 @@ static const VMStateDescription vmstate_servo =
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(pulse_width, ServoState),
+        VMSTATE_UINT64(pulse_width, ServoState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -99,7 +114,7 @@ static void servo_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    s->pulse_width = 0;
+    s->pulse_width = 20000000;
 
     memory_region_init_io(&s->iomem, obj, &servo_ops, s, TYPE_SERVO, 0x1000);
 
@@ -107,6 +122,8 @@ static void servo_init(Object *obj)
 
     qdev_init_gpio_out(dev, &s->duty_signal, 1);
     qdev_init_gpio_in(dev, handle_signal, 1);
+
+    s->clk = qdev_init_clock_in(dev, "clk", NULL, NULL, 0);
 }
 
 static void servo_realize(DeviceState *dev, Error **errp)
@@ -127,12 +144,20 @@ static Property servo_properties[] =
     DEFINE_PROP_END_OF_LIST()
 };
 
+static void servo_reset(DeviceState *dev)
+{
+    ServoState *s = TM4_SERVO(dev);
+
+    s->pulse_width = 20000000;
+}
+
 static void servo_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_servo;
     dc->realize = servo_realize;
+    dc->reset = servo_reset;
 
     device_class_set_props(dc, servo_properties);
 }

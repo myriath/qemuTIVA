@@ -5,6 +5,9 @@ build: bin/kernel.sys
 run: bin/kernel.sys
 	../../../../build/qemu-system-arm -nographic -semihosting -machine tm4c123gh6pm_debug -kernel "bin/kernel.sys"
 
+run_cybot: bin/kernel.sys
+	../../../../build/qemu-system-arm -nographic -semihosting -machine cybot_debug -kernel bin/kernel.sys
+
 bin/kernel.sys: bin/kernel.elf bin
 	arm-none-eabi-objcopy -O binary bin/kernel.elf bin/kernel.sys
 
@@ -20,6 +23,9 @@ bin/kernel.o: src/tm4c123gh6pm_kernel.c bin
 dbg: bin/kernel.sys.g
 	../../../../build/qemu-system-arm -nographic -semihosting -machine tm4c123gh6pm_debug -kernel "bin/kernel.sys.g" -d in_asm,int,exec,cpu,guest_errors,unimp -s -S
 	
+dbg_cybot: bin/kernel.sys.g
+	../../../../build/qemu-system-arm -nographic -semihosting -machine cybot_debug -kernel bin/kernel.sys. -d in_asm,int,exec,cpu,guest_errors,unimp -s -Sg
+
 bin/kernel.sys.g: bin/kernel.elf.g bin
 	arm-none-eabi-objcopy -O binary bin/kernel.elf.g bin/kernel.sys.g
 
