@@ -221,6 +221,8 @@ struct ssys_state {
     Clock *timer_clks[COUNT_TIMERS];
     Clock *uart_clks[COUNT_UART];
     Clock *adc_clks[COUNT_ADC];
+
+    bool debug;
 };
 
 /* System controller.  */

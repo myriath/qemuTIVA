@@ -450,21 +450,29 @@ static void ssys_write(void *opaque, hwaddr offset,
 {
     ssys_state *s = (ssys_state *)opaque;
 
+    const char *reg = "BAD OFFSET";
+    uint32_t output = value;
+
     // TODO
     switch (offset) {
     case 0x030: /* PBORCTL */
+        reg = "PBORCTL";
         s->pborctl = value;
         break;
     case 0x054: /* IMC */
+        reg = "IMC";
         s->imc = value;
         break;
     case 0x058: /* MISC */
+        reg = "MISC";
         s->ris &= ~value;
         break;
     case 0x05c: /* RESC */
+        reg = "RESC";
         s->resc = value;
         break;
     case 0x060: /* RCC */
+        reg = "RCC";
         if ((s->rcc & (1 << 13)) != 0 && (value & (1 << 13)) == 0) {
             /* PLL enable.  */
             s->ris |= (1 << 6);
@@ -473,9 +481,11 @@ static void ssys_write(void *opaque, hwaddr offset,
         ssys_calculate_system_clock(s, true);
         break;
     case 0x06c:
+        reg = "GPIOHBCTL";
         s->gpiohbctl = value;
         break;
     case 0x070: /* RCC2 */
+        reg = "RCC2";
         if ((s->rcc2 & (1 << 13)) != 0 && (value & (1 << 13)) == 0) {
             /* PLL enable.  */
             s->ris |= (1 << 6);
@@ -484,234 +494,310 @@ static void ssys_write(void *opaque, hwaddr offset,
         ssys_calculate_system_clock(s, true);
         break;
     case 0x07c:
+        reg = "MOSCCTL";
         s->moscctl = value;
         break;
     case 0x144:
+        reg = "DSLPCLKCFG";
         s->dslpclkcfg = value;
         break;
     case 0x150:
+        reg = "PIOSCCAL";
         s->piosccal = value;
         break;
     case 0x188:
+        reg = "SLPPWRCFG";
         s->slppwrcfg = value;
         break;
     case 0x18c:
+        reg = "DSLPPWRCFG";
         s->dslppwrcfg = value;
         break;
     case 0x1b4:
+        reg = "LDOSPCTL";
         s->ldospctl = value;
         break;
     case 0x1bc:
+        reg = "LDODPCTL";
         s->ldodpctl = value;
         break;
     case 0x500:
+        reg = "SRWD";
         s->srwd = value;
         break;
     case 0x504:
+        reg = "SRTIMER";
         s->srtimer = value;
         break;
     case 0x508:
+        reg = "SRGPIO";
         s->srgpio = value;
         break;
     case 0x50c:
+        reg = "SRDMA";
         s->srdma = value;
         break;
     case 0x514:
+        reg = "SRHIB";
         s->srhib = value;
         break;
     case 0x518:
+        reg = "SRUART";
         s->sruart = value;
         break;
     case 0x51c:
+        reg = "SRSSI";
         s->srssi = value;
         break;
     case 0x520:
+        reg = "SRI2C";
         s->sri2c = value;
         break;
     case 0x528:
+        reg = "SRUSB";
         s->srusb = value;
         break;
     case 0x534:
+        reg = "SRCAN";
         s->srcan = value;
         break;
     case 0x538:
+        reg = "SRADC";
         s->sradc = value;
         break;
     case 0x53c:
+        reg = "SRACMP";
         s->sracmp = value;
         break;
     case 0x540:
+        reg = "SRPWM";
         s->srpwm = value;
         break;
     case 0x544:
+        reg = "SRQEI";
         s->srqei = value;
         break;
     case 0x558:
+        reg = "SREEPROM";
         s->sreeprom = value;
         break;
     case 0x55c:
+        reg = "SRWTIMER";
         s->srwtimer = value;
         break;
     case 0x600:
+        reg = "RCGCWD";
         s->rcgcwd = value;
         break;
     case 0x604:
+        reg = "RCGCTIMER";
         s->rcgctimer = value;
         s->prtimer &= ~value;
         update_clock(s->period, COUNT_TIMERS, s->timer_clks, value);
         s->prtimer |= value;
         break;
     case 0x608:
+        reg = "RCGCGPIO";
         s->rcgcgpio = value;
         s->prgpio &= ~value;
         update_clock(s->period, N_GPIOS, s->gpio_clks, value);
         s->prgpio |= value;
         break;
     case 0x60c:
+        reg = "RCGCDMA";
         s->rcgcdma = value;
         break;
     case 0x614:
+        reg = "RCGCHIB";
         s->rcgchib = value;
         break;
     case 0x618:
+        reg = "RCGCUART";
         s->rcgcuart = value;
         s->pruart &= ~value;
         update_clock(s->period, COUNT_UART, s->uart_clks, value);
         s->pruart |= value;
         break;
     case 0x61c:
+        reg = "RCGCSSI";
         s->rcgcssi = value;
         break;
     case 0x620:
+        reg = "RCGCI2C";
         s->rcgci2c = value;
         break;
     case 0x628:
+        reg = "RCGCUSB";
         s->rcgcusb = value;
         break;
     case 0x634:
+        reg = "RCGCCAN";
         s->rcgccan = value;
         break;
     case 0x638:
+        reg = "RCGCADC";
         s->rcgcadc = value;
         s->pradc &= ~value;
         update_clock(s->period, COUNT_ADC, s->adc_clks, value);
         s->pradc |= value;
         break;
     case 0x63c:
+        reg = "RCGCACMP";
         s->rcgcacmp = value;
         break;
     case 0x640:
+        reg = "RCGCPWM";
         s->rcgcpwm = value;
         break;
     case 0x644:
+        reg = "RCGCQEI";
         s->rcgcqei = value;
         break;
     case 0x658:
+        reg = "RCGCEEPROM";
         s->rcgceeprom = value;
         break;
     case 0x65c:
+        reg = "RCGCWTIMER";
         s->rcgcwtimer = value;
         break;
     case 0x700:
+        reg = "SCGCWD";
         s->scgcwd = value;
         break;
     case 0x704:
+        reg = "SCGCTIMER";
         s->scgctimer = value;
         break;
     case 0x708:
+        reg = "SCGCGPIO";
         s->scgcgpio = value;
         break;
     case 0x70c:
+        reg = "SCGCDMA";
         s->scgcdma = value;
         break;
     case 0x714:
+        reg = "SCGCHIB";
         s->scgchib = value;
         break;
     case 0x718:
+        reg = "SCGCUART";
         s->scgcuart = value;
         break;
     case 0x71c:
+        reg = "SCGCSSI";
         s->scgcssi = value;
         break;
     case 0x720:
+        reg = "SCGCI2C";
         s->scgci2c = value;
         break;
     case 0x728:
+        reg = "SCGCUSB";
         s->scgcusb = value;
         break;
     case 0x734:
+        reg = "SCGCCAN";
         s->scgccan = value;
         break;
     case 0x738:
+        reg = "SCGCADC";
         s->scgcadc = value;
         break;
     case 0x73c:
+        reg = "SCGCACMP";
         s->scgcacmp = value;
         break;
     case 0x740:
+        reg = "SCGCPWM";
         s->scgcpwm = value;
         break;
     case 0x744:
+        reg = "SCGCQEI";
         s->scgcqei = value;
         break;
     case 0x758:
+        reg = "SCGCEEPROM";
         s->scgceeprom = value;
         break;
     case 0x75c:
+        reg = "SCGCWTIMER";
         s->scgcwtimer = value;
         break;
     case 0x800:
+        reg = "DCGCWD";
         s->dcgcwd = value;
         break;
     case 0x804:
+        reg = "DCGCTIMER";
         s->dcgctimer = value;
         break;
     case 0x808:
+        reg = "DCGCGPIO";
         s->dcgcgpio = value;
         break;
     case 0x80c:
+        reg = "DCGCDMA";
         s->dcgcdma = value;
         break;
     case 0x814:
+        reg = "DCGCHIB";
         s->dcgchib = value;
         break;
     case 0x818:
+        reg = "DCGCUART";
         s->dcgcuart = value;
         break;
     case 0x81c:
+        reg = "DCGCSSI";
         s->dcgcssi = value;
         break;
     case 0x820:
+        reg = "DCGCI2C";
         s->dcgci2c = value;
         break;
     case 0x828:
+        reg = "DCGCUSB";
         s->dcgcusb = value;
         break;
     case 0x834:
+        reg = "DCGCCAN";
         s->dcgccan = value;
         break;
     case 0x838:
+        reg = "DCGCADC";
         s->dcgcadc = value;
         break;
     case 0x83c:
+        reg = "DCGCACMP";
         s->dcgcacmp = value;
         break;
     case 0x840:
+        reg = "DCGCPWM";
         s->dcgcpwm = value;
         break;
     case 0x844:
+        reg = "DCGCQEI";
         s->dcgcqei = value;
         break;
     case 0x858:
+        reg = "DCGCEEPROM";
         s->dcgceeprom = value;
         break;
     case 0x85c:
+        reg = "DCGCWTIMER";
         s->dcgcwtimer = value;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "SSYS: write at bad offset 0x%x\n", (int)offset);
     }
+
+    if (s->debug) {
+        printf("[SYSCTL %s] 0x%08X\n", reg, output);
+    }
+
     ssys_update(s);
 }
 
@@ -823,6 +909,7 @@ static Property tm4c123gh6pm_sys_properties[] = {
     DEFINE_PROP_UINT32("ppqei", ssys_state, ppqei, 0),
     DEFINE_PROP_UINT32("ppeeprom", ssys_state, ppeeprom, 0),
     DEFINE_PROP_UINT32("ppwtimer", ssys_state, ppwtimer, 0),
+    DEFINE_PROP_BOOL("debug", ssys_state, debug, false),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -969,6 +1056,7 @@ static void board_init(MachineState *ms, struct tiva_devices *devices, bool debu
      * need its sysclk output.
      */
     *ssys_dev = qdev_new(TYPE_TM4_SYS);
+    qdev_prop_set_bit(*ssys_dev, "debug", debug);
     object_property_add_child(soc_container, "sys", OBJECT(*ssys_dev));
 
     // Values fetched from CyBot
