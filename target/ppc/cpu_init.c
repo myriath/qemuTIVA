@@ -1642,7 +1642,7 @@ static void register_8xx_sprs(CPUPPCState *env)
 
 /*****************************************************************************/
 /* Exception vectors models                                                  */
-static void init_excp_4xx_softmmu(CPUPPCState *env)
+static void init_excp_4xx(CPUPPCState *env)
 {
 #if !defined(CONFIG_USER_ONLY)
     env->excp_vectors[POWERPC_EXCP_CRITICAL] = 0x00000100;
@@ -2120,7 +2120,7 @@ static void init_proc_405(CPUPPCState *env)
     env->id_tlbs = 0;
     env->tlb_type = TLB_EMB;
 #endif
-    init_excp_4xx_softmmu(env);
+    init_excp_4xx(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
@@ -5820,7 +5820,7 @@ static void register_power10_dexcr_sprs(CPUPPCState *env)
 {
     spr_register(env, SPR_DEXCR, "DEXCR",
             SPR_NOACCESS, SPR_NOACCESS,
-            &spr_read_generic, &spr_write_generic32,
+            &spr_read_generic, &spr_write_generic,
             0);
 
     spr_register(env, SPR_UDEXCR, "UDEXCR",
@@ -5831,7 +5831,7 @@ static void register_power10_dexcr_sprs(CPUPPCState *env)
     spr_register_hv(env, SPR_HDEXCR, "HDEXCR",
             SPR_NOACCESS, SPR_NOACCESS,
             SPR_NOACCESS, SPR_NOACCESS,
-            &spr_read_generic, &spr_write_generic32,
+            &spr_read_generic, &spr_write_generic,
             0);
 
     spr_register(env, SPR_UHDEXCR, "UHDEXCR",
@@ -7063,7 +7063,7 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
     }
 
     name = cpu_model_from_type(typename);
-    qemu_printf("PowerPC %-16s PVR %08x\n", name, pcc->pvr);
+    qemu_printf("  %-16s PVR %08x\n", name, pcc->pvr);
     for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
         PowerPCCPUAlias *alias = &ppc_cpu_aliases[i];
         ObjectClass *alias_oc = ppc_cpu_class_by_name(alias->model);
@@ -7076,10 +7076,10 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
          * avoid printing the wrong alias here and use "preferred" instead
          */
         if (strcmp(alias->alias, family->desc) == 0) {
-            qemu_printf("PowerPC %-16s (alias for preferred %s CPU)\n",
+            qemu_printf("  %-16s (alias for preferred %s CPU)\n",
                         alias->alias, family->desc);
         } else {
-            qemu_printf("PowerPC %-16s (alias for %s)\n",
+            qemu_printf("  %-16s (alias for %s)\n",
                         alias->alias, name);
         }
     }
@@ -7090,6 +7090,7 @@ void ppc_cpu_list(void)
 {
     GSList *list;
 
+    qemu_printf("Available CPUs:\n");
     list = object_class_get_list(TYPE_POWERPC_CPU, false);
     list = g_slist_sort(list, ppc_cpu_list_compare);
     g_slist_foreach(list, ppc_cpu_list_entry, NULL);
@@ -7097,7 +7098,7 @@ void ppc_cpu_list(void)
 
 #ifdef CONFIG_KVM
     qemu_printf("\n");
-    qemu_printf("PowerPC %s\n", "host");
+    qemu_printf("  %s\n", "host");
 #endif
 }
 
@@ -7136,7 +7137,7 @@ static int ppc_cpu_mmu_index(CPUState *cs, bool ifetch)
     return ppc_env_mmu_index(cpu_env(cs), ifetch);
 }
 
-static void ppc_cpu_reset_hold(Object *obj)
+static void ppc_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -7146,7 +7147,7 @@ static void ppc_cpu_reset_hold(Object *obj)
     int i;
 
     if (pcc->parent_phases.hold) {
-        pcc->parent_phases.hold(obj);
+        pcc->parent_phases.hold(obj, type);
     }
 
     msr = (target_ulong)0;

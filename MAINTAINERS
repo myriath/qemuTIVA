@@ -291,19 +291,6 @@ F: disas/*mips.c
 F: docs/system/cpu-models-mips.rst.inc
 F: tests/tcg/mips/
 
-NiosII TCG CPUs
-R: Chris Wulff <crwulff@gmail.com>
-R: Marek Vasut <marex@denx.de>
-S: Orphan
-F: target/nios2/
-F: hw/nios2/
-F: hw/intc/nios2_vic.c
-F: disas/nios2.c
-F: include/hw/intc/nios2_vic.h
-F: configs/devices/nios2-softmmu/default.mak
-F: tests/docker/dockerfiles/debian-nios2-cross.d/build-toolchain.sh
-F: tests/tcg/nios2/
-
 OpenRISC TCG CPUs
 M: Stafford Horne <shorne@gmail.com>
 S: Odd Fixes
@@ -545,7 +532,7 @@ Guest CPU Cores (Xen)
 ---------------------
 X86 Xen CPUs
 M: Stefano Stabellini <sstabellini@kernel.org>
-M: Anthony Perard <anthony.perard@citrix.com>
+M: Anthony PERARD <anthony@xenproject.org>
 M: Paul Durrant <paul@xen.org>
 L: xen-devel@lists.xenproject.org
 S: Supported
@@ -1128,6 +1115,7 @@ M: Inès Varhol <ines.varhol@telecom-paris.fr>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/stm32l4x5_soc.c
+F: hw/char/stm32l4x5_usart.c
 F: hw/misc/stm32l4x5_exti.c
 F: hw/misc/stm32l4x5_syscfg.c
 F: hw/misc/stm32l4x5_rcc.c
@@ -1545,7 +1533,7 @@ F: pc-bios/skiboot.lid
 F: tests/qtest/pnv*
 
 pca955x
-M: Glenn Miles <milesg@linux.vnet.ibm.com>
+M: Glenn Miles <milesg@linux.ibm.com>
 L: qemu-ppc@nongnu.org
 L: qemu-arm@nongnu.org
 S: Odd Fixes
@@ -2170,7 +2158,7 @@ S: Supported
 F: hw/vfio/*
 F: include/hw/vfio/
 F: docs/igd-assign.txt
-F: docs/devel/vfio-migration.rst
+F: docs/devel/migration/vfio.rst
 
 vfio-ccw
 M: Eric Farman <farman@linux.ibm.com>
@@ -2231,6 +2219,7 @@ F: qapi/virtio.json
 F: net/vhost-user.c
 F: include/hw/virtio/
 F: docs/devel/virtio*
+F: docs/devel/migration/virtio.rst
 
 virtio-balloon
 M: Michael S. Tsirkin <mst@redhat.com>
@@ -2370,11 +2359,6 @@ F: hw/virtio/vhost-user-scmi*
 F: include/hw/virtio/vhost-user-scmi.h
 F: tests/qtest/libqos/virtio-scmi.*
 
-vdpa-net
-M: Hao Chen <chenh@yusur.tech>
-S: Maintained
-F: docs/system/devices/vdpa-net.rst
-
 virtio-crypto
 M: Gonglei <arei.gonglei@huawei.com>
 S: Supported
@@ -2482,7 +2466,7 @@ F: tests/qtest/libqos/e1000e.*
 
 igb
 M: Akihiko Odaki <akihiko.odaki@daynix.com>
-R: Sriram Yagnaraman <sriram.yagnaraman@est.tech>
+R: Sriram Yagnaraman <sriram.yagnaraman@ericsson.com>
 S: Maintained
 F: docs/system/devices/igb.rst
 F: hw/net/igb*
@@ -3013,7 +2997,7 @@ F: include/qapi/error.h
 F: include/qemu/error-report.h
 F: qapi/error.json
 F: util/error.c
-F: util/qemu-error.c
+F: util/error-report.c
 F: scripts/coccinelle/err-bad-newline.cocci
 F: scripts/coccinelle/error-use-after-free.cocci
 F: scripts/coccinelle/error_propagate_null.cocci
@@ -3422,7 +3406,7 @@ F: migration/
 F: scripts/vmstate-static-checker.py
 F: tests/vmstate-static-checker-data/
 F: tests/qtest/migration-test.c
-F: docs/devel/migration.rst
+F: docs/devel/migration/
 F: qapi/migration.json
 F: tests/migration/
 F: util/userfaultfd.c
@@ -3442,6 +3426,7 @@ F: include/sysemu/dirtylimit.h
 F: migration/dirtyrate.c
 F: migration/dirtyrate.h
 F: include/sysemu/dirtyrate.h
+F: docs/devel/migration/dirty-limit.rst
 
 Detached LUKS header
 M: Hyman Huang <yong.huang@smartx.com>
@@ -3821,7 +3806,7 @@ F: block/vmdk.c
 
 RBD
 M: Ilya Dryomov <idryomov@gmail.com>
-R: Peter Lieven <pl@kamp.de>
+R: Peter Lieven <pl@dlhnet.de>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/rbd.c
@@ -3847,7 +3832,7 @@ F: block/blkio.c
 iSCSI
 M: Ronnie Sahlberg <ronniesahlberg@gmail.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
-M: Peter Lieven <pl@kamp.de>
+M: Peter Lieven <pl@dlhnet.de>
 L: qemu-block@nongnu.org
 S: Odd Fixes
 F: block/iscsi.c
@@ -3870,7 +3855,7 @@ T: git https://repo.or.cz/qemu/ericb.git nbd
 T: git https://gitlab.com/vsementsov/qemu.git block
 
 NFS
-M: Peter Lieven <pl@kamp.de>
+M: Peter Lieven <pl@dlhnet.de>
 L: qemu-block@nongnu.org
 S: Maintained
 F: block/nfs.c
@@ -4060,16 +4045,6 @@ F: block/replication.c
 F: tests/unit/test-replication.c
 F: docs/block-replication.txt
 
-PVRDMA
-M: Yuval Shaia <yuval.shaia.ml@gmail.com>
-M: Marcel Apfelbaum <marcel.apfelbaum@gmail.com>
-S: Odd Fixes
-F: hw/rdma/*
-F: hw/rdma/vmw/*
-F: docs/pvrdma.txt
-F: contrib/rdmacm-mux/*
-F: qapi/rdma.json
-
 Semihosting
 M: Alex Bennée <alex.bennee@linaro.org>
 S: Maintained
@@ -4255,3 +4230,8 @@ Code Coverage Tools
 M: Alex Bennée <alex.bennee@linaro.org>
 S: Odd Fixes
 F: scripts/coverage/
+
+Machine development tool
+M: Maksim Davydov <davydov-max@yandex-team.ru>
+S: Supported
+F: scripts/compare-machine-types.py

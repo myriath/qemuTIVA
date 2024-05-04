@@ -2039,22 +2039,6 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
             goto err;
         }
 
-        /* Mark dirty page's bitmap of guest memory */
-        if (vdev->lm_logging_ctrl == LM_ENABLE) {
-            uint64_t chunk = elem->in_addr[i] / VHOST_LOG_CHUNK;
-            /* Get chunk index */
-            BitmapMemoryRegionCaches *caches = qatomic_rcu_read(&vdev->caches);
-            uint64_t index = chunk / 8;
-            uint64_t shift = chunk % 8;
-            uint8_t val = 0;
-            address_space_read_cached(&caches->bitmap, index, &val,
-                                      sizeof(val));
-            val |= 1 << shift;
-            address_space_write_cached(&caches->bitmap, index, &val,
-                                       sizeof(val));
-            address_space_cache_invalidate(&caches->bitmap, index, sizeof(val));
-        }
-
         elems[i] = elem;
         lens[i] = total;
         i++;
@@ -2865,6 +2849,10 @@ static void virtio_net_handle_tx_bh(VirtIODevice *vdev, VirtQueue *vq)
     VirtIONet *n = VIRTIO_NET(vdev);
     VirtIONetQueue *q = &n->vqs[vq2q(virtio_get_queue_index(vq))];
 
+    if (unlikely(n->vhost_started)) {
+        return;
+    }
+
     if (unlikely((n->status & VIRTIO_NET_S_LINK_UP) == 0)) {
         virtio_net_drop_tx_queue_data(vdev, vq);
         return;
@@ -3426,7 +3414,7 @@ static bool virtio_net_guest_notifier_pending(VirtIODevice *vdev, int idx)
     VirtIONet *n = VIRTIO_NET(vdev);
     NetClientState *nc;
     assert(n->vhost_started);
-    if (!virtio_vdev_has_feature(vdev, VIRTIO_NET_F_MQ) && idx == 2) {
+    if (!n->multiqueue && idx == 2) {
         /* Must guard against invalid features and bogus queue index
          * from being set by malicious guest, or penetrated through
          * buggy migration stream.
@@ -3458,7 +3446,7 @@ static void virtio_net_guest_notifier_mask(VirtIODevice *vdev, int idx,
     VirtIONet *n = VIRTIO_NET(vdev);
     NetClientState *nc;
     assert(n->vhost_started);
-    if (!virtio_vdev_has_feature(vdev, VIRTIO_NET_F_MQ) && idx == 2) {
+    if (!n->multiqueue && idx == 2) {
         /* Must guard against invalid features and bogus queue index
          * from being set by malicious guest, or penetrated through
          * buggy migration stream.

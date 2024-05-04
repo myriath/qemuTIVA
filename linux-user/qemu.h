@@ -4,9 +4,7 @@
 #include "cpu.h"
 #include "exec/cpu_ldst.h"
 
-#undef DEBUG_REMAP
-
-#include "exec/user/abitypes.h"
+#include "user/abitypes.h"
 
 #include "syscall_defs.h"
 #include "target_syscall.h"
@@ -332,7 +330,7 @@ void *lock_user(int type, abi_ulong guest_addr, ssize_t len, bool copy);
 /* Unlock an area of guest memory.  The first LEN bytes must be
    flushed back to guest memory. host_ptr = NULL is explicitly
    allowed and does nothing. */
-#ifndef DEBUG_REMAP
+#ifndef CONFIG_DEBUG_REMAP
 static inline void unlock_user(void *host_ptr, abi_ulong guest_addr,
                                ssize_t len)
 {
