@@ -838,7 +838,7 @@ static void tm4c123gh6pm_sys_reset_enter(Object *obj, ResetType type)
     s->dcgc[0] = 1;
 }
 
-static void tm4c123gh6pm_sys_reset_hold(Object *obj)
+static void tm4c123gh6pm_sys_reset_hold(Object *obj, ResetType type)
 {
     ssys_state *s = TM4_SYS(obj);
 
@@ -846,7 +846,7 @@ static void tm4c123gh6pm_sys_reset_hold(Object *obj)
     ssys_calculate_system_clock(s, true);
 }
 
-static void tm4c123gh6pm_sys_reset_exit(Object *obj)
+static void tm4c123gh6pm_sys_reset_exit(Object *obj, ResetType type)
 {
 }
 

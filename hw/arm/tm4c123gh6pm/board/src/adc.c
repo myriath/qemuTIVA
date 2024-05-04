@@ -125,7 +125,7 @@ static void adc_pssi_trigger(ADCState *s)
 }
 
 // Resets the ADC
-static void adc_reset_hold(Object *obj)
+static void adc_reset_hold(Object *obj, ResetType type)
 {
     ADCState *s = TM4_ADC(obj);
     int n;

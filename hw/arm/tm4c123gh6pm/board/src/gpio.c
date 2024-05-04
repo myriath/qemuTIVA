@@ -503,7 +503,7 @@ static void gpio_enter_reset(Object *obj, ResetType type)
     s->dmactl = 0;
 }
 
-static void gpio_hold_reset(Object *obj)
+static void gpio_hold_reset(Object *obj, ResetType type)
 {
     GPIOState *s = TM4_GPIO(obj);
 
