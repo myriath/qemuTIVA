@@ -53,8 +53,16 @@ void hard_fault(void)
 /**
  * Main function. Write your code here
 */
-int main() 
+int tm4() 
 {
+    // Enable clocks for devices
+    SYSCTL_RCGCGPIO_R = 0x3f;
+    while (~SYSCTL_PRGPIO_R & 0x3f);
+    SYSCTL_RCGCADC_R = 0x3;
+    while (~SYSCTL_PRADC_R & 0x3f);
+    SYSCTL_RCGCUART_R = 0x7f;
+    while (~SYSCTL_PRUART_R & 0x7f);
+
     // ADC GPIO
     GPIO_PORTD_DEN_R = 0;
     GPIO_PORTE_DEN_R = 0;
@@ -180,4 +188,44 @@ int main()
     // Force hard fault for testing interrupt
     __asm__("b 0x30000000");
     return 0;
+}
+
+#define PULSE_WIDTH (*((volatile uint32_t *)0x50000000))
+
+int cybot() 
+{
+    // Set pulse width to 20,000,000 ns (20ms)
+    PULSE_WIDTH = 20000000;
+
+    // Enable clock
+    SYSCTL_RCGCGPIO_R |= 0x2;
+    while (~SYSCTL_PRGPIO_R & 0x2);
+    SYSCTL_RCGCTIMER_R |= 0x2;
+    while (~SYSCTL_PRTIMER_R & 0x2);
+
+    // Setup timer GPIO port
+    GPIO_PORTB_DEN_R |= 0x20;
+    GPIO_PORTB_DIR_R |= 0x20;
+    GPIO_PORTB_AFSEL_R |= 0x20;
+    GPIO_PORTB_PCTL_R |= 0x700000;
+
+    // Setup timer
+    TIMER1_CFG_R = 4;
+    TIMER1_TBMR_R = 0xa;
+    // load value = 250,000 = 20 ms (12.5 MHz)
+    TIMER1_TBILR_R = 0xd090;
+    TIMER1_TBPR_R = 0x3;
+    // match value = 237,500 = 19ms
+    TIMER1_TBMATCHR_R = 0x9fbc;
+    TIMER1_TBPMR_R = 0x3;
+    // thus, 1ms high = 5% duty cycle
+    TIMER1_CTL_R = 0x100;
+
+    while (true);
+}
+
+int main() 
+{
+    // cybot();
+    tm4();
 }

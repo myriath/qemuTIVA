@@ -10,12 +10,14 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+#include "hw/qdev-clock.h"
 
 #define F_NONE          -1
 #define F_GENERAL       0
 #define F_ANALOG        0
 #define F_UART          1
 #define F_UART_ALT      2
+#define F_TIMER         7
 
 #define F_CAN1Rx_A      8
 #define F_CAN1Tx_A      8
@@ -27,34 +29,22 @@
 #define F_M1PWM2_A      5
 #define F_I2C1SDA_A     3
 #define F_M1PWM3_A      5
-#define F_T2CCP0_B      7
-#define F_T2CCP1_B      7
 #define F_I2C0SCL_B     3
-#define F_T3CCP0_B      7
 #define F_I2C0SDA_B     3
-#define F_T3CCP1_B      7
 #define F_SSI2Clk_B     2
 #define F_M0PWM2_B      4
-#define F_T1CCP0_B      7
 #define F_CAN0Rx_B      8
 #define F_SSI2Fss_B     2
 #define F_M0PWM3_B      4
-#define F_T1CCP1_B      7
 #define F_CAN0Tx_B      8
 #define F_SSI2Rx_B      2
 #define F_M0PWM0_B      4
-#define F_T0CCP0_B      7
 #define F_SSI2Tx_B      2
 #define F_M0PWM1_B      4
-#define F_T0CCP1_B      7
 #define F_TCK_SWCLK_C   1
-#define F_T4CCP0_C      7
 #define F_TMS_SWDIO_C   1
-#define F_T4CCP1_C      7
 #define F_TDI_C         1
-#define F_T5CCP0_C      7
 #define F_TDO_SWO_C     1
-#define F_T5CCP1_C      7
 #define F_M0PWM6_C      4
 #define F_IDX1_C        6
 #define F_WT0CCP0_C     7
@@ -111,29 +101,24 @@
 #define F_CAN0Rx_F      3
 #define F_M1PWM4_F      5
 #define F_PhA0_F        6
-#define F_T0CCP0_F      7
 #define F_NMI_F         8
 #define F_C0o_F         9
 #define F_U1CTS_F       1
 #define F_SSI1Tx_F      2
 #define F_M1PWM5_F      5
 #define F_PhB0_F        6
-#define F_T0CCP1_F      7
 #define F_C1o_F         9
 #define F_TRD1_F        14
 #define F_SSI1Clk_F     2
 #define F_M0FAULT0_F    4
 #define F_M1PWM6_F      5
-#define F_T1CCP0_F      7
 #define F_TRD0_F        14
 #define F_SSI1Fss_F     2
 #define F_CAN0Tx_F      3
 #define F_M1PWM7_F      5
-#define F_T1CCP1_F      7
 #define F_TRCLK_F       14
 #define F_M1FAULT0_F    5
 #define F_IDX0_F        6
-#define F_T2CCP0_F      7
 #define F_USB0EPEN_F    8
 
 #define N_GPIOS         6
@@ -186,11 +171,15 @@ struct GPIOState {
     // Inputs go from TM4 board to GPIO controller
     qemu_irq inputs[N_GPIO_TABLE];
     uint8_t port;
+    bool debug;
+
+    Clock *clk;
+    bool clock_active;
 };
 
 #define TYPE_TM4_GPIO "tm4-gpio"
 OBJECT_DECLARE_SIMPLE_TYPE(GPIOState, TM4_GPIO)
 
-DeviceState *gpio_create(hwaddr addr, qemu_irq nvic_irq, uint8_t port);
+DeviceState *gpio_create(bool debug, hwaddr addr, qemu_irq nvic_irq, uint8_t port, Clock *clk);
 
 #endif

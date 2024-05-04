@@ -107,19 +107,21 @@ struct UARTState {
     qemu_irq rx_gpio;
 
     // Stuff for timing uart send / receive
-    // True = will TX when ticked, False = will RX when ticked
-    bool timer_state;
-    int64_t tick;
-    QEMUTimer *timer;
+    int64_t write_tick;
+    int64_t read_tick;
+    QEMUTimer *write_timer;
+    QEMUTimer *read_timer;
     Clock *clk;
+    bool clock_active;
 
     const uint8_t *id;
     const uint8_t uart;
+    bool debug;
 };
 
 #define TYPE_TM4_UART "tm4-uart"
 OBJECT_DECLARE_SIMPLE_TYPE(UARTState, TM4_UART)
 
-DeviceState *uart_create(hwaddr addr, uint8_t uart, qemu_irq nvic_irq, qemu_irq tx_gpio, qemu_irq rts, qemu_irq cts, Clock *clk);
+DeviceState *uart_create(bool debug, hwaddr addr, uint8_t uart, qemu_irq nvic_irq, qemu_irq tx_gpio, qemu_irq rts, qemu_irq cts, Clock *clk);
 
 #endif

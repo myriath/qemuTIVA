@@ -2,7 +2,9 @@
 #define TM4_H_
 
 #include "joiner.h"
+#include "servo.h"
 #include "gpio.h"
+#include "timer_16_32.h"
 #include "adc.h"
 #include "uart.h"
 #include "test_analog.h"
@@ -35,6 +37,14 @@
 #include "qapi/qmp/qlist.h"
 #include "ui/input.h"
 
+#define CLK_SYS     0
+#define CLK_GPIO    1
+#define CLK_UART    7
+#define CLK_TIMER   15
+#define CLK_ADC     21
+
+#define COUNT_CLOCKS    5
+
 #define GPIO_A 0
 #define GPIO_B 1
 #define GPIO_C 2
@@ -48,6 +58,20 @@
 
 #define NUM_IRQ_LINES 138
 #define NUM_PRIO_BITS 3
+
+struct tiva_devices {
+    DeviceState *timer[COUNT_TIMERS];
+    DeviceState *gpio[N_GPIOS];
+    DeviceState *uart[COUNT_UART];
+    DeviceState *adc[COUNT_ADC];
+
+    Object *soc;
+    DeviceState *nvic;
+    DeviceState *ssys_dev;
+
+    qemu_irq gpio_in[N_GPIOS][N_GPIO_BITS][N_PCTL_OPTS];
+    qemu_irq gpio_out[N_GPIOS][N_GPIO_BITS][N_PCTL_OPTS];
+};
 
 struct ssys_state {
     SysBusDevice parent_obj;
@@ -190,7 +214,15 @@ struct ssys_state {
     uint32_t nvmstat;
 
     qemu_irq irq;
+
+    uint64_t period;
     Clock *sysclk;
+    Clock *gpio_clks[N_GPIOS];
+    Clock *timer_clks[COUNT_TIMERS];
+    Clock *uart_clks[COUNT_UART];
+    Clock *adc_clks[COUNT_ADC];
+
+    bool debug;
 };
 
 /* System controller.  */

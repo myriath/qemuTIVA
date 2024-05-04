@@ -1,13 +1,15 @@
 #include "hw/arm/tm4c123gh6pm/board/include/gpio.h"
 
-DeviceState *gpio_create(hwaddr addr, qemu_irq nvic_irq, uint8_t port)
+DeviceState *gpio_create(bool debug, hwaddr addr, qemu_irq nvic_irq, uint8_t port, Clock *clk)
 {
     // Needed to set a property before realization, this
     // is just the internals of sysbus_create_simple()
     DeviceState *dev = qdev_new(TYPE_TM4_GPIO);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    qdev_connect_clock_in(dev, "clk", clk);
 
     qdev_prop_set_uint8(dev, "port", port);
+    qdev_prop_set_bit(dev, "debug", debug);
     sysbus_realize_and_unref(sbd, &error_fatal);
 
     sysbus_mmio_map(sbd, 0, addr);
@@ -38,21 +40,21 @@ const int8_t GPIO_ALTERNATE_FUNCTIONS[6][N_GPIO_BITS][16] =
     },
     // GPIO B
     {
-        {F_ANALOG, F_UART, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_T2CCP0_B, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
-        {F_ANALOG, F_UART, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_T2CCP1_B, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
-        {F_NONE, F_NONE, F_NONE, F_I2C0SCL_B, F_NONE, F_NONE, F_NONE, F_T3CCP0_B, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
-        {F_NONE, F_NONE, F_NONE, F_I2C0SDA_B, F_NONE, F_NONE, F_NONE, F_T3CCP1_B, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
-        {F_ANALOG, F_NONE, F_SSI2Clk_B, F_NONE, F_M0PWM2_B, F_NONE, F_NONE, F_T1CCP0_B, F_CAN0Rx_B, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
-        {F_ANALOG, F_NONE, F_SSI2Fss_B, F_NONE, F_M0PWM3_B, F_NONE, F_NONE, F_T1CCP1_B, F_CAN0Tx_B, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
-        {F_NONE, F_NONE, F_SSI2Rx_B, F_NONE, F_M0PWM0_B, F_NONE, F_NONE, F_T0CCP0_B, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
-        {F_NONE, F_NONE, F_SSI2Tx_B, F_NONE, F_M0PWM1_B, F_NONE, F_NONE, F_T0CCP1_B, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE}
+        {F_ANALOG, F_UART, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_TIMER, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_ANALOG, F_UART, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_TIMER, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_NONE, F_I2C0SCL_B, F_NONE, F_NONE, F_NONE, F_TIMER, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_NONE, F_I2C0SDA_B, F_NONE, F_NONE, F_NONE, F_TIMER, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_ANALOG, F_NONE, F_SSI2Clk_B, F_NONE, F_M0PWM2_B, F_NONE, F_NONE, F_TIMER, F_CAN0Rx_B, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_ANALOG, F_NONE, F_SSI2Fss_B, F_NONE, F_M0PWM3_B, F_NONE, F_NONE, F_TIMER, F_CAN0Tx_B, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_SSI2Rx_B, F_NONE, F_M0PWM0_B, F_NONE, F_NONE, F_TIMER, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_NONE, F_SSI2Tx_B, F_NONE, F_M0PWM1_B, F_NONE, F_NONE, F_TIMER, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE}
     },
     // GPIO C
     {
-        {F_NONE, F_TCK_SWCLK_C, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_T4CCP0_C, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
-        {F_NONE, F_TMS_SWDIO_C, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_T4CCP1_C, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
-        {F_NONE, F_TDI_C, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_T5CCP0_C, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
-        {F_NONE, F_TDO_SWO_C, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_T5CCP1_C, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_TCK_SWCLK_C, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_TIMER, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_TMS_SWDIO_C, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_TIMER, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_TDI_C, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_TIMER, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_TDO_SWO_C, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_TIMER, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
         {F_ANALOG, F_UART, F_UART_ALT, F_NONE, F_M0PWM6_C, F_NONE, F_IDX1_C, F_WT0CCP0_C, F_U1RTS_C, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
         {F_ANALOG, F_UART, F_UART_ALT, F_NONE, F_M0PWM7_C, F_NONE, F_PhA1_C, F_WT0CCP1_C, F_U1CTS_C, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
         {F_ANALOG, F_UART, F_NONE, F_NONE, F_NONE, F_NONE, F_PhB1_C, F_WT1CCP0_C, F_USB0EPEN_C, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
@@ -82,11 +84,11 @@ const int8_t GPIO_ALTERNATE_FUNCTIONS[6][N_GPIO_BITS][16] =
     },
     // GPIO F
     {
-        {F_NONE, F_U1RTS_F, F_SSI1Rx_F, F_CAN0Rx_F, F_NONE, F_M1PWM4_F, F_PhA0_F, F_T0CCP0_F, F_NMI_F, F_C0o_F, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
-        {F_NONE, F_U1CTS_F, F_SSI1Tx_F, F_NONE, F_NONE, F_M1PWM5_F, F_PhB0_F, F_T0CCP1_F, F_NONE, F_C1o_F, F_NONE, F_NONE, F_NONE, F_NONE, F_TRD1_F, F_NONE},
-        {F_NONE, F_NONE, F_SSI1Clk_F, F_NONE, F_M0FAULT0_F, F_M1PWM6_F, F_NONE, F_T1CCP0_F, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_TRD0_F, F_NONE},
-        {F_NONE, F_NONE, F_SSI1Fss_F, F_CAN0Tx_F, F_NONE, F_M1PWM7_F, F_NONE, F_T1CCP1_F, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_TRCLK_F, F_NONE},
-        {F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_M1FAULT0_F, F_IDX0_F, F_T2CCP0_F, F_USB0EPEN_F, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_U1RTS_F, F_SSI1Rx_F, F_CAN0Rx_F, F_NONE, F_M1PWM4_F, F_PhA0_F, F_TIMER, F_NMI_F, F_C0o_F, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
+        {F_NONE, F_U1CTS_F, F_SSI1Tx_F, F_NONE, F_NONE, F_M1PWM5_F, F_PhB0_F, F_TIMER, F_NONE, F_C1o_F, F_NONE, F_NONE, F_NONE, F_NONE, F_TRD1_F, F_NONE},
+        {F_NONE, F_NONE, F_SSI1Clk_F, F_NONE, F_M0FAULT0_F, F_M1PWM6_F, F_NONE, F_TIMER, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_TRD0_F, F_NONE},
+        {F_NONE, F_NONE, F_SSI1Fss_F, F_CAN0Tx_F, F_NONE, F_M1PWM7_F, F_NONE, F_TIMER, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_TRCLK_F, F_NONE},
+        {F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_M1FAULT0_F, F_IDX0_F, F_TIMER, F_USB0EPEN_F, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
         {F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
         {F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE},
         {F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE, F_NONE}
@@ -120,6 +122,7 @@ static const VMStateDescription vmstate_gpio = {
         VMSTATE_UINT32(pctl, GPIOState),
         VMSTATE_UINT32(adcctl, GPIOState),
         VMSTATE_UINT32(dmactl, GPIOState),
+        VMSTATE_CLOCK(clk, GPIOState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -347,6 +350,11 @@ static void gpio_write(void *opaque, hwaddr offset,
                        uint64_t value, unsigned size)
 {
     GPIOState *s = opaque;
+
+    if (!s->clock_active) {
+        return;
+    }
+
     uint8_t mask;
     uint8_t value8 = value & 0xff;
 
@@ -461,7 +469,9 @@ static void gpio_write(void *opaque, hwaddr offset,
         qemu_log_mask(LOG_GUEST_ERROR, "gpio_write: Bad offset %x\n", (int)offset);
     }
 
-    printf("[GPIO %c %s] 0x%.2X\n", s->port + 'A', reg, output);
+    if (s->debug) {
+        printf("[GPIO %c %s] 0x%.2X\n", s->port + 'A', reg, output);
+    }
     gpio_update(s);
 }
 
@@ -517,6 +527,16 @@ static const MemoryRegionOps gpio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN
 };
 
+static void check_clock(void *opaque, ClockEvent event)
+{
+    if (event != ClockUpdate) {
+        return;
+    }
+    
+    GPIOState *s = opaque;
+    s->clock_active = clock_get(s->clk) != 0;
+}
+
 static void gpio_init(Object *obj)
 {
     GPIOState *s = TM4_GPIO(obj);
@@ -537,12 +557,18 @@ static void gpio_init(Object *obj)
     }
     // Initialize inputs
     qdev_init_gpio_in(dev, gpio_input_handler, N_GPIO_TABLE);
+
+    s->clk = qdev_init_clock_in(dev, "clk", check_clock, s, ClockUpdate);
 }
 
 static void gpio_realize(DeviceState *dev, Error **errp)
 {
     GPIOState *s = TM4_GPIO(dev);
 
+    if (!clock_has_source(s->clk)) {
+        error_setg(errp, "gpio: clk must be connected");
+        return;
+    }
     if (s->pur > 0xff) {
         error_setg(errp, "pullups property must be between 0 and 0xff");
         return;
@@ -562,6 +588,7 @@ static Property gpio_props[] =
     DEFINE_PROP_UINT32("pur", GPIOState, pur, 0xff),
     DEFINE_PROP_UINT32("pdr", GPIOState, pdr, 0x0),
     DEFINE_PROP_UINT8("port", GPIOState, port, -1),
+    DEFINE_PROP_BOOL("debug", GPIOState, debug, false),
     DEFINE_PROP_END_OF_LIST()
 };
 
