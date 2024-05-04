@@ -55,6 +55,14 @@ void hard_fault(void)
 */
 int tm4() 
 {
+    // Enable clocks for devices
+    SYSCTL_RCGCGPIO_R = 0x3f;
+    while (~SYSCTL_PRGPIO_R & 0x3f);
+    SYSCTL_RCGCADC_R = 0x3;
+    while (~SYSCTL_PRADC_R & 0x3f);
+    SYSCTL_RCGCUART_R = 0x7f;
+    while (~SYSCTL_PRUART_R & 0x7f);
+
     // ADC GPIO
     GPIO_PORTD_DEN_R = 0;
     GPIO_PORTE_DEN_R = 0;
@@ -189,6 +197,12 @@ int cybot()
     // Set pulse width to 20,000,000 ns (20ms)
     PULSE_WIDTH = 20000000;
 
+    // Enable clock
+    SYSCTL_RCGCGPIO_R |= 0x2;
+    while (~SYSCTL_PRGPIO_R & 0x2);
+    SYSCTL_RCGCTIMER_R |= 0x2;
+    while (~SYSCTL_PRTIMER_R & 0x2);
+
     // Setup timer GPIO port
     GPIO_PORTB_DEN_R |= 0x20;
     GPIO_PORTB_DIR_R |= 0x20;
@@ -212,5 +226,6 @@ int cybot()
 
 int main() 
 {
-    cybot();
+    // cybot();
+    tm4();
 }

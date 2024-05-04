@@ -8,6 +8,7 @@
 #include "hw/irq.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
+#include "hw/qdev-clock.h"
 
 #define TM4_ADC_EM_CONTROLLER 0
 #define TM4_ADC_EM_COMP       1
@@ -63,6 +64,9 @@ struct ADCState {
 
     uint8_t adc;
     bool debug;
+
+    Clock *clk;
+    bool clock_active;
 };
 
 #define TYPE_TM4_ADC "tm4-adc"
@@ -70,6 +74,6 @@ struct ADCState {
 typedef struct ADCState ADCState;
 DECLARE_INSTANCE_CHECKER(ADCState, TM4_ADC, TYPE_TM4_ADC)
 
-DeviceState *adc_create(bool debug, hwaddr addr, qemu_irq *nvic_irq, uint8_t adc);
+DeviceState *adc_create(bool debug, hwaddr addr, qemu_irq *nvic_irq, uint8_t adc, Clock *clk);
 
 #endif

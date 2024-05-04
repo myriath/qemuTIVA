@@ -1,5 +1,31 @@
 #include "hw/arm/tm4c123gh6pm/board/include/tm4c123gh6pm.h"
 
+static const char *ssys_clocks[] = {
+    "SYSCLK",
+    "GPIOACLK",
+    "GPIOBCLK",
+    "GPIOCCLK",
+    "GPIODCLK",
+    "GPIOECLK",
+    "GPIOFCLK",
+    "UART0CLK",
+    "UART1CLK",
+    "UART2CLK",
+    "UART3CLK",
+    "UART4CLK",
+    "UART5CLK",
+    "UART6CLK",
+    "UART7CLK",
+    "TIMER0CLK",
+    "TIMER1CLK",
+    "TIMER2CLK",
+    "TIMER3CLK",
+    "TIMER4CLK",
+    "TIMER5CLK",
+    "ADC0CLK",
+    "ADC1CLK",
+};
+
 static const uint32_t uart_addr[COUNT_UART] = {
     0x4000c000, 0x4000d000, 0x4000e000, 0x4000f000,
     0x40010000, 0x40011000, 0x40012000, 0x40013000
@@ -59,7 +85,6 @@ uint8_t timer_ccp_ports[COUNT_TIMERS] = {
 uint8_t timer_ccp_pins[COUNT_TIMERS] = {
     6, 4, 0, 2, 0, 2
 };
-
 
 static void ssys_update(ssys_state *s)
 {
@@ -373,6 +398,26 @@ static bool ssys_use_rcc2(ssys_state *s)
     return (s->rcc2 >> 31) & 0x1;
 }
 
+static void update_clock(uint64_t period, int clock_count, Clock *clocks[], int rcgc_value)
+{
+    for (int i = 0; i < clock_count; i++) {
+        int mask = 1 << i;
+        if (rcgc_value & mask) {
+            clock_update_ns(clocks[i], period);
+        } else {
+            clock_update_ns(clocks[i], 0);
+        }
+    }
+}
+
+static void update_all_clocks(ssys_state *s)
+{
+    update_clock(s->period, N_GPIOS, s->gpio_clks, s->rcgcgpio);
+    update_clock(s->period, COUNT_TIMERS, s->timer_clks, s->rcgctimer);
+    update_clock(s->period, COUNT_UART, s->uart_clks, s->rcgcuart);
+    update_clock(s->period, COUNT_ADC, s->adc_clks, s->rcgcadc);
+}
+
 /*
  * Calculate the system clock period. We only want to propagate
  * this change to the rest of the system if we're not being called
@@ -392,9 +437,11 @@ static void ssys_calculate_system_clock(ssys_state *s, bool propagate_clock)
     } else {
         period_ns = 5 * (((s->rcc >> 23) & 0xf) + 1);
     }
+    s->period = period_ns;
     clock_set_ns(s->sysclk, period_ns);
     if (propagate_clock) {
         clock_propagate(s->sysclk);
+        update_all_clocks(s);
     }
 }
 
@@ -510,9 +557,15 @@ static void ssys_write(void *opaque, hwaddr offset,
         break;
     case 0x604:
         s->rcgctimer = value;
+        s->prtimer &= ~value;
+        update_clock(s->period, COUNT_TIMERS, s->timer_clks, value);
+        s->prtimer |= value;
         break;
     case 0x608:
         s->rcgcgpio = value;
+        s->prgpio &= ~value;
+        update_clock(s->period, N_GPIOS, s->gpio_clks, value);
+        s->prgpio |= value;
         break;
     case 0x60c:
         s->rcgcdma = value;
@@ -522,6 +575,9 @@ static void ssys_write(void *opaque, hwaddr offset,
         break;
     case 0x618:
         s->rcgcuart = value;
+        s->pruart &= ~value;
+        update_clock(s->period, COUNT_UART, s->uart_clks, value);
+        s->pruart |= value;
         break;
     case 0x61c:
         s->rcgcssi = value;
@@ -537,6 +593,9 @@ static void ssys_write(void *opaque, hwaddr offset,
         break;
     case 0x638:
         s->rcgcadc = value;
+        s->pradc &= ~value;
+        update_clock(s->period, COUNT_ADC, s->adc_clks, value);
+        s->pradc |= value;
         break;
     case 0x63c:
         s->rcgcacmp = value;
@@ -670,6 +729,24 @@ static void tm4c123gh6pm_sys_reset_enter(Object *obj, ResetType type)
     s->rcc = 0x078e3ad1;
     s->rcc2 = 0x07c06810;
 
+    // All peripheral ready registers initialized with 1s since clock gating starts set up
+    s->pracmp = 0xffffffff;
+    s->pradc = 0xffffffff;
+    s->prcan = 0xffffffff;
+    s->prdma = 0xffffffff;
+    s->preeprom = 0xffffffff;
+    s->prgpio = 0xffffffff;
+    s->prhib = 0xffffffff;
+    s->pri2c = 0xffffffff;
+    s->prpwm = 0xffffffff;
+    s->prqei = 0xffffffff;
+    s->prssi = 0xffffffff;
+    s->prtimer = 0xffffffff;
+    s->pruart = 0xffffffff;
+    s->prusb = 0xffffffff;
+    s->prwd = 0xffffffff;
+    s->prwtimer = 0xffffffff;
+
     s->rcgc[0] = 1;
     s->scgc[0] = 1;
     s->dcgc[0] = 1;
@@ -749,15 +826,28 @@ static Property tm4c123gh6pm_sys_properties[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
+static void create_clocks(int clk_index, int count, Clock **clocks, DeviceState *dev)
+{
+    for (int i = 0; i < count; i++) {
+        clocks[i] = qdev_init_clock_out(dev, ssys_clocks[clk_index + i]);
+    }
+}
+
 static void tm4c123gh6pm_sys_instance_init(Object *obj)
 {
     ssys_state *s = TM4_SYS(obj);
+    DeviceState *dev = DEVICE(s);
     SysBusDevice *sbd = SYS_BUS_DEVICE(s);
 
     memory_region_init_io(&s->iomem, obj, &ssys_ops, s, "ssys", 0x00001000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
-    s->sysclk = qdev_init_clock_out(DEVICE(s), "SYSCLK");
+
+    create_clocks(CLK_SYS, 1, &s->sysclk, dev);
+    create_clocks(CLK_GPIO, N_GPIOS, s->gpio_clks, dev);
+    create_clocks(CLK_TIMER, COUNT_TIMERS, s->timer_clks, dev);
+    create_clocks(CLK_UART, COUNT_UART, s->uart_clks, dev);
+    create_clocks(CLK_ADC, COUNT_ADC, s->adc_clks, dev);
 }
 
 static void board_init(MachineState *ms, struct tiva_devices *devices, bool debug)
@@ -933,7 +1023,7 @@ static void board_init(MachineState *ms, struct tiva_devices *devices, bool debu
 
     // GPIO
     for (i = 0; i < N_GPIOS; i++) {
-        gpio_dev[i] = gpio_create(debug, gpio_addr[i], qdev_get_gpio_in(*nvic, gpio_irq[i]), i);
+        gpio_dev[i] = gpio_create(debug, gpio_addr[i], qdev_get_gpio_in(*nvic, gpio_irq[i]), i, qdev_get_clock_out(*ssys_dev, ssys_clocks[CLK_GPIO + i]));
         
         for (j = 0; j < N_GPIO_BITS; j++) {
             for (k = 0; k < N_PCTL_OPTS; k++) {
@@ -953,7 +1043,7 @@ static void board_init(MachineState *ms, struct tiva_devices *devices, bool debu
         for (j = 0; j < COUNT_SS; j++) {
             adc_nvic[j] = qdev_get_gpio_in(*nvic, adc_irq[i][j]);
         }
-        adc[i] = adc_create(debug, adc_addr[i], adc_nvic, i);
+        adc[i] = adc_create(debug, adc_addr[i], adc_nvic, i, qdev_get_clock_out(*ssys_dev, ssys_clocks[CLK_ADC + i]));
     }
 
     // Connect GPIO to ADC
@@ -983,7 +1073,7 @@ static void board_init(MachineState *ms, struct tiva_devices *devices, bool debu
             qdev_get_gpio_in(*nvic, timer_irq[width][index]), 
             timer_addr[width][index], 
             i,
-            qdev_get_clock_out(*ssys_dev, "SYSCLK")
+            qdev_get_clock_out(*ssys_dev, ssys_clocks[CLK_TIMER + i])
         );
         devices->timer[i] = dev;
 
@@ -1037,7 +1127,7 @@ static void board_init(MachineState *ms, struct tiva_devices *devices, bool debu
         }
 
         dev = uart_create(debug, uart_addr[i], i, qdev_get_gpio_in(*nvic, uart_irq[i]), 
-                          tx_gpio, rts, cts, qdev_get_clock_out(*ssys_dev, "SYSCLK"));
+                          tx_gpio, rts, cts, qdev_get_clock_out(*ssys_dev, ssys_clocks[CLK_UART + i]));
         devices->uart[i] = dev;
         // Connect RX pin
         qdev_connect_gpio_out_named(rx_dev, rx_name, rx_irq, qdev_get_gpio_in(dev, 0));
@@ -1135,7 +1225,7 @@ static void cybot_init(MachineState *ms, bool debug)
 
     board_init(ms, &devices, debug);
 
-    dev = servo_create(debug, 0x50000000, qdev_get_clock_out(devices.ssys_dev, "SYSCLK"));
+    dev = servo_create(debug, 0x50000000, qdev_get_clock_out(devices.ssys_dev, ssys_clocks[CLK_SYS]));
     // Connect servo to GPIO B pin 5 (from cybot baseboard ref) [timer 1 b]
     devices.gpio_out[GPIO_B][5][F_TIMER] = qdev_get_gpio_in(dev, 0);
 

@@ -26,7 +26,7 @@ static void reload(ServoState *s, bool reset)
     s->start_ns = tick;
     s->pulse_end_ns = tick;
     tick += s->pulse_width;
-    printf("Servo waiting %ld ns\n", s->pulse_width);
+    // printf("Servo waiting %ld ns\n", s->pulse_width);
     s->tick = tick;
 
     timer_mod(s->timer, tick);

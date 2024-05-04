@@ -10,6 +10,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+#include "hw/qdev-clock.h"
 
 #define F_NONE          -1
 #define F_GENERAL       0
@@ -171,11 +172,14 @@ struct GPIOState {
     qemu_irq inputs[N_GPIO_TABLE];
     uint8_t port;
     bool debug;
+
+    Clock *clk;
+    bool clock_active;
 };
 
 #define TYPE_TM4_GPIO "tm4-gpio"
 OBJECT_DECLARE_SIMPLE_TYPE(GPIOState, TM4_GPIO)
 
-DeviceState *gpio_create(bool debug, hwaddr addr, qemu_irq nvic_irq, uint8_t port);
+DeviceState *gpio_create(bool debug, hwaddr addr, qemu_irq nvic_irq, uint8_t port, Clock *clk);
 
 #endif

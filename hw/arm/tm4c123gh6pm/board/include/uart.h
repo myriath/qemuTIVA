@@ -112,6 +112,7 @@ struct UARTState {
     QEMUTimer *write_timer;
     QEMUTimer *read_timer;
     Clock *clk;
+    bool clock_active;
 
     const uint8_t *id;
     const uint8_t uart;

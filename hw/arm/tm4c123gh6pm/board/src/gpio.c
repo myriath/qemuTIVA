@@ -1,11 +1,12 @@
 #include "hw/arm/tm4c123gh6pm/board/include/gpio.h"
 
-DeviceState *gpio_create(bool debug, hwaddr addr, qemu_irq nvic_irq, uint8_t port)
+DeviceState *gpio_create(bool debug, hwaddr addr, qemu_irq nvic_irq, uint8_t port, Clock *clk)
 {
     // Needed to set a property before realization, this
     // is just the internals of sysbus_create_simple()
     DeviceState *dev = qdev_new(TYPE_TM4_GPIO);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    qdev_connect_clock_in(dev, "clk", clk);
 
     qdev_prop_set_uint8(dev, "port", port);
     qdev_prop_set_bit(dev, "debug", debug);
@@ -121,6 +122,7 @@ static const VMStateDescription vmstate_gpio = {
         VMSTATE_UINT32(pctl, GPIOState),
         VMSTATE_UINT32(adcctl, GPIOState),
         VMSTATE_UINT32(dmactl, GPIOState),
+        VMSTATE_CLOCK(clk, GPIOState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -348,6 +350,11 @@ static void gpio_write(void *opaque, hwaddr offset,
                        uint64_t value, unsigned size)
 {
     GPIOState *s = opaque;
+
+    if (!s->clock_active) {
+        return;
+    }
+
     uint8_t mask;
     uint8_t value8 = value & 0xff;
 
@@ -520,6 +527,16 @@ static const MemoryRegionOps gpio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN
 };
 
+static void check_clock(void *opaque, ClockEvent event)
+{
+    if (event != ClockUpdate) {
+        return;
+    }
+    
+    GPIOState *s = opaque;
+    s->clock_active = clock_get(s->clk) != 0;
+}
+
 static void gpio_init(Object *obj)
 {
     GPIOState *s = TM4_GPIO(obj);
@@ -540,12 +557,18 @@ static void gpio_init(Object *obj)
     }
     // Initialize inputs
     qdev_init_gpio_in(dev, gpio_input_handler, N_GPIO_TABLE);
+
+    s->clk = qdev_init_clock_in(dev, "clk", check_clock, s, ClockUpdate);
 }
 
 static void gpio_realize(DeviceState *dev, Error **errp)
 {
     GPIOState *s = TM4_GPIO(dev);
 
+    if (!clock_has_source(s->clk)) {
+        error_setg(errp, "gpio: clk must be connected");
+        return;
+    }
     if (s->pur > 0xff) {
         error_setg(errp, "pullups property must be between 0 and 0xff");
         return;

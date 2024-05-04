@@ -37,6 +37,14 @@
 #include "qapi/qmp/qlist.h"
 #include "ui/input.h"
 
+#define CLK_SYS     0
+#define CLK_GPIO    1
+#define CLK_UART    7
+#define CLK_TIMER   15
+#define CLK_ADC     21
+
+#define COUNT_CLOCKS    5
+
 #define GPIO_A 0
 #define GPIO_B 1
 #define GPIO_C 2
@@ -206,7 +214,13 @@ struct ssys_state {
     uint32_t nvmstat;
 
     qemu_irq irq;
+
+    uint64_t period;
     Clock *sysclk;
+    Clock *gpio_clks[N_GPIOS];
+    Clock *timer_clks[COUNT_TIMERS];
+    Clock *uart_clks[COUNT_UART];
+    Clock *adc_clks[COUNT_ADC];
 };
 
 /* System controller.  */

@@ -378,6 +378,10 @@ static void uart_write(void *opaque, hwaddr offset, uint64_t value, unsigned siz
 {
     UARTState *s = opaque;
 
+    if (!s->clock_active) {
+        return;
+    }
+
     const char *reg = "BAD OFFSET";
     uint32_t output = value;
 
@@ -507,10 +511,12 @@ static void uart_write(void *opaque, hwaddr offset, uint64_t value, unsigned siz
 }
 
 
-static void uart_clock_update(void *opaque, ClockEvent event)
+static void check_clock(void *opaque, ClockEvent event)
 {
     // do nothing for now
     // UARTState *s = TM4_UART(opaque);
+    UARTState *s = TM4_UART(opaque);
+    s->clock_active = clock_get(s->clk) != 0;
 }
 
 static const MemoryRegionOps uart_ops =
@@ -629,7 +635,7 @@ static void uart_init(Object *obj)
     qdev_init_gpio_out(dev, &s->tx_gpio, 1);
     qdev_init_gpio_in(dev, uart_rx_gpio, 1);
 
-    s->clk = qdev_init_clock_in(dev, "clk", uart_clock_update, s, ClockUpdate);
+    s->clk = qdev_init_clock_in(dev, "clk", check_clock, s, ClockUpdate);
 
     s->id = uart_id;
 }

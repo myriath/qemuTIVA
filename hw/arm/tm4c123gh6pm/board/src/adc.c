@@ -1,10 +1,11 @@
 #include "hw/arm/tm4c123gh6pm/board/include/adc.h"
 
-DeviceState *adc_create(bool debug, hwaddr addr, qemu_irq *nvic_irq, uint8_t adc)
+DeviceState *adc_create(bool debug, hwaddr addr, qemu_irq *nvic_irq, uint8_t adc, Clock *clk)
 {
     // Also the internals of sysbus_create_varargs because we need the adc prop set
     DeviceState *dev = qdev_new(TYPE_TM4_ADC);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    qdev_connect_clock_in(dev, "clk", clk);
      
     qdev_prop_set_uint8(dev, "adc", adc);
     qdev_prop_set_bit(dev, "debug", debug);
@@ -229,6 +230,10 @@ static void adc_write(void *opaque, hwaddr offset,
 {
     ADCState *s = opaque;
 
+    if (!s->clock_active) {
+        return;
+    }
+
     uint32_t output = value;
     const char *reg = "BAD OFFSET";
     char buf[BUF_SIZE];
@@ -417,9 +422,20 @@ static const VMStateDescription vmstate_adc = {
         VMSTATE_UINT32(dccmp[7], ADCState),
         VMSTATE_UINT32(pc, ADCState),
         VMSTATE_UINT32(cc, ADCState),
+        VMSTATE_CLOCK(clk, ADCState),
         VMSTATE_END_OF_LIST()
     }
 };
+
+static void check_clock(void *opaque, ClockEvent event)
+{
+    if (event != ClockUpdate) {
+        return;
+    }
+
+    ADCState *s = opaque;
+    s->clock_active = clock_get(s->clk) != 0;
+}
 
 // Initialize a new ADC device
 static void adc_init(Object *obj)
@@ -440,6 +456,8 @@ static void adc_init(Object *obj)
     }
 
     qdev_init_gpio_in(dev, adc_ain_trigger, 12);
+
+    s->clk = qdev_init_clock_in(dev, "clk", check_clock, s, ClockUpdate);
 }
 
 static Property adc_properties[] = 
@@ -448,6 +466,16 @@ static Property adc_properties[] =
     DEFINE_PROP_BOOL("debug", ADCState, debug, false),
     DEFINE_PROP_END_OF_LIST()
 };
+
+static void adc_realize(DeviceState *dev, Error **errp)
+{
+    ADCState *s = TM4_ADC(dev);
+
+    if (!clock_has_source(s->clk)) {
+        error_setg(errp, "adc: clk must be connected");
+        return;
+    }
+}
 
 // Initialize ADC class for QEMU
 static void adc_class_init(ObjectClass *klass, void *data)
@@ -459,6 +487,7 @@ static void adc_class_init(ObjectClass *klass, void *data)
 
     rc->phases.hold = adc_reset_hold;
     dc->vmsd = &vmstate_adc;
+    dc->realize = adc_realize;
 }
 
 // ADC device info

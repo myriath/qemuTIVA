@@ -133,7 +133,7 @@ static void reload(GPTMState *s, int timer, bool reset)
         s->ris |= timer == GPTM_A ? GPTM_INT_TATO_M : GPTM_INT_TBTO_M;
         ns = clock_ticks_to_ns(s->clk, match);
     }
-    printf("Timer waiting %ld ns\n", ns);
+    // printf("Timer waiting %ld ns\n", ns);
 
     if (!reset) {
         s->matched[timer] = !s->matched[timer];
@@ -576,6 +576,11 @@ static void gptm_write(void *opaque, hwaddr offset,
                        uint64_t value, unsigned size)
 {
     GPTMState *s = opaque;
+
+    if (!s->clock_active) {
+        return;
+    }
+
     uint32_t oldval;
 
     uint32_t output = value;
@@ -723,6 +728,16 @@ static const VMStateDescription vmstate_gptm = {
     }
 };
 
+static void check_clock(void *opaque, ClockEvent event)
+{
+    if (event != ClockUpdate) {
+        return;
+    }
+
+    GPTMState *s = opaque;
+    s->clock_active = clock_get(s->clk) != 0;
+}
+
 static void gptm_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -749,7 +764,7 @@ static void gptm_init(Object *obj)
      * make it easy to implement reading the current count from the
      * TAR and TBR registers.
      */
-    s->clk = qdev_init_clock_in(dev, "clk", NULL, NULL, 0);
+    s->clk = qdev_init_clock_in(dev, "clk", check_clock, s, ClockUpdate);
 }
 
 static void gptm_realize(DeviceState *dev, Error **errp)
@@ -757,10 +772,9 @@ static void gptm_realize(DeviceState *dev, Error **errp)
     GPTMState *s = TM4_TIMER(dev);
 
     if (!clock_has_source(s->clk)) {
-        error_setg(errp, "stellaris-gptm: clk must be connected");
+        error_setg(errp, "gptm: clk must be connected");
         return;
     }
-
 
     s->timer[0] = timer_new_ns(QEMU_CLOCK_VIRTUAL, timer_tick, &s->opaque[0]);
     s->timer[1] = timer_new_ns(QEMU_CLOCK_VIRTUAL, timer_tick, &s->opaque[1]);

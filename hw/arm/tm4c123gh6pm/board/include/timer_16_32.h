@@ -145,6 +145,7 @@ struct GPTMState {
     qemu_irq ccp_gpio[2];
     qemu_irq nvic_irq;
     Clock *clk;
+    bool clock_active;
 
     // Properties
     uint8_t timer_num;
