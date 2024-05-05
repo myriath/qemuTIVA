@@ -13,6 +13,7 @@ struct fifo {
 struct server {
     int sock;
     int port;
+    bool connected;
     struct fifo send_fifo;
     struct fifo recv_fifo;
 };
@@ -91,6 +92,17 @@ bool is_wifi_empty(bool use_student_server)
     }
 }
 
+bool is_wifi_connected(int server)
+{
+    switch (server) {
+        case SERVER_INSTRUCTOR:
+            return instructor_server.connected;
+        case SERVER_STUDENT:
+            return student_server.connected;
+    }
+    return false;
+}
+
 void *thread_send(void *opaque)
 {
     struct server *server = (struct server *) opaque;
@@ -164,21 +176,24 @@ void *thread_start_server(void *opaque)
         perror("Failed to accept connection");
         exit(EXIT_FAILURE);           
     }
+    server->connected = true;
 
     pthread_t send_thread;
     pthread_t recv_thread;
 
     if (pthread_create(&send_thread, NULL, thread_send, (void*) server) < 0) {
         perror("Failed to create send thread");
-        exit(EXIT_FAILURE);
+        // exit(EXIT_FAILURE);
     }
     if (pthread_create(&recv_thread, NULL, thread_recv, (void*) server) < 0) {
         perror("Failed to create recv thread");
-        exit(EXIT_FAILURE);
+        // exit(EXIT_FAILURE);
     }
 
     pthread_join(send_thread, NULL);
     pthread_join(recv_thread, NULL);
+
+    server->connected = false;
 
     close(server->sock);
     close(fd);
@@ -206,6 +221,7 @@ void initialize_server(bool student, int port, int size)
     }
 
     server->port = port;
+    server->connected = false;
     initialize_fifo(&server->recv_fifo, size);
     initialize_fifo(&server->send_fifo, size);
 }

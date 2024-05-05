@@ -57,5 +57,11 @@ bool is_wifi_full(bool use_student_server);
  * @return true if there is no data to read yet.
 */
 bool is_wifi_empty(bool use_student_server);
+/**
+ * See if the given server is connected. Use the macros from the top of this file.
+ * @param server Server to check, from the macros at the top of this file.
+ * @return True if the server is connected, false if not, or the server number was invalid.
+*/
+bool is_wifi_connected(int server);
 
 #endif
