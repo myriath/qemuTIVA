@@ -10,7 +10,7 @@ int client_connect(char *ip, int port, void (*handle)(void))
     
     struct sockaddr_in address = {
         .sin_family = AF_INET,
-        .sin_port = port,
+        .sin_port = htons(port),
         .sin_addr.s_addr = inet_addr(ip)
     };
     memset(&(address.sin_zero), 0, 8);

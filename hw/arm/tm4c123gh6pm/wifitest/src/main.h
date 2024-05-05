@@ -8,6 +8,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <stdbool.h>
+#include <pthread.h>
+#include <errno.h>
 
 #define SUCCESS         0
 #define ERR_SOCK_FAILED -1
