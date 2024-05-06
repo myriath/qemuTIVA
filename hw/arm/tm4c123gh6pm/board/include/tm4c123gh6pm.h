@@ -3,6 +3,7 @@
 
 #include "joiner.h"
 #include "servo.h"
+#include "wifi.h"
 #include "gpio.h"
 #include "timer_16_32.h"
 #include "adc.h"

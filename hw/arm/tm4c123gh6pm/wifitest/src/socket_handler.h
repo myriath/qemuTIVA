@@ -1,5 +1,5 @@
-#ifndef __CYBOT_WIFI_H_
-#define __CYBOT_WIFI_H_
+#ifndef CYBOT_SOCKETS_H_
+#define CYBOT_SOCKETS_H_
 
 #include <stdio.h>
 #include <stdlib.h>

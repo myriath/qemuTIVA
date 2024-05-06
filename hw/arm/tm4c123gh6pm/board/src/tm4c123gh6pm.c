@@ -1313,9 +1313,14 @@ static void cybot_init(MachineState *ms, bool debug)
 
     board_init(ms, &devices, debug);
 
-    dev = servo_create(debug, 0x50000000, qdev_get_clock_out(devices.ssys_dev, ssys_clocks[CLK_SYS]));
+    Clock *sys_clk = qdev_get_clock_out(devices.ssys_dev, ssys_clocks[CLK_SYS]);
+
+    dev = servo_create(debug, 0x50000000, sys_clk);
     // Connect servo to GPIO B pin 5 (from cybot baseboard ref) [timer 1 b]
     devices.gpio_out[GPIO_B][5][F_TIMER] = qdev_get_gpio_in(dev, 0);
+
+    dev = wifi_create(0x50001000, devices.gpio_in[GPIO_B][0][F_UART], sys_clk);
+    devices.gpio_out[GPIO_B][1][F_UART] = qdev_get_gpio_in(dev, 0);
 
     connect_gpios(&devices);
 }
