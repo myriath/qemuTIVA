@@ -290,9 +290,9 @@ int cybot_wifi()
         if (i != 0) {
             command_byte = 0;
             if (i == '\n' || commandPtr >= MAX_COMMAND_LEN - 1) {
-                uart_print("Received: ");
+                uart_print("Received: '");
                 uart_print(command);
-                uart_send('\n');
+                uart_print("'\n");
                 for (int j = 0; j < commandPtr; j++) {
                     command[j] = 0;
                 }
