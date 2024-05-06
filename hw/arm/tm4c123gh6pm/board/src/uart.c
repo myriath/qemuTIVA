@@ -47,14 +47,14 @@ static void uart_put_fifo(UARTState *s, uint32_t value, int direction)
         fifo = s->read_fifo;
         pos = s->read_pos;
         count = &s->read_count;
-        flag_full = UART_FLAG_TXFF;
-        flag_empty = UART_FLAG_RXFF;
+        flag_full = UART_FLAG_RXFF;
+        flag_empty = UART_FLAG_RXFE;
     } else if (direction == UART_FIFO_WRITE) {
         fifo = s->write_fifo;
         pos = s->write_pos;
         count = &s->write_count;
         flag_full = UART_FLAG_TXFF;
-        flag_empty = UART_FLAG_RXFF;
+        flag_empty = UART_FLAG_TXFE;
     }
 
     int depth = uart_get_fifo_depth(s);
@@ -136,10 +136,10 @@ static void parse_frame(UARTState *s)
         if (parity != calc_parity) {
             s->dr |= UART_DR_PE;
             s->ris |= UART_INT_PE;
+            return;
         }
 
         frame_size--;
-        // todo check parity
     }
     uint8_t stop_mask = ((1 << stop_count) - 1);
     uint8_t stop = frame & stop_mask;

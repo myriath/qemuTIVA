@@ -224,8 +224,89 @@ int cybot()
     while (true);
 }
 
+volatile char command_byte = 0;
+
+void UART1_Handler(void) 
+{
+    if (UART1_MIS_R & UART_MIS_RXMIS) {
+        UART1_ICR_R |= UART_ICR_RXIC;
+        command_byte = UART1_DR_R & 0xff;
+    }
+}
+
+void uart_send(char data) {
+    while (UART1_FR_R & 0x20);
+    UART1_DR_R = data;
+}
+
+void uart_print(char *data) {
+    char *ptr = data;
+    while (*ptr != 0) {
+        uart_send(*(ptr++));
+    }
+}
+
+#define MAX_COMMAND_LEN 100
+
+int cybot_wifi()
+{
+    SYSCTL_RCGCGPIO_R |= 0x2;
+    SYSCTL_RCGCUART_R |= 0x2;
+    while ((SYSCTL_PRGPIO_R & 0x2) == 0);
+    while ((SYSCTL_PRUART_R & 0x2) == 0);
+
+    GPIO_PORTB_AFSEL_R |= 0x3;
+    GPIO_PORTB_DEN_R |= 0x3;
+    GPIO_PORTB_PCTL_R = 0x11;
+    // uint16_t iBRD = 16000000 / (16 * 115200);
+    uint16_t iBRD = 1000;
+    // uint16_t fBRD = (int)(0.6808 * 64 + 0.5);
+    uint16_t fBRD = 0;
+
+    UART1_CTL_R &= ~0xcbbf;
+    UART1_IBRD_R = iBRD;
+    UART1_FBRD_R = fBRD;
+
+    UART1_LCRH_R = 0x60;
+    UART1_CC_R = 0x0;
+
+    UART1_ICR_R |= 0x10;
+    UART1_IM_R |= 0x10;
+    NVIC_PRI1_R = (NVIC_PRI1_R * 0xff0fffff) | 0x00200000;
+    NVIC_EN0_R |= 0x40;
+
+    IntRegister(INT_UART1, UART1_Handler);
+    IntMasterEnable();    
+
+    UART1_CTL_R |= 0x301;
+                          
+    int commandLen = 0;
+    char command[MAX_COMMAND_LEN];
+
+    int commandPtr = 0;
+
+    while (true) {
+        char i = command_byte;
+        if (i != 0) {
+            command_byte = 0;
+            if (i == '\n' || commandPtr >= MAX_COMMAND_LEN - 1) {
+                uart_print("Received: '");
+                uart_print(command);
+                uart_print("'\n");
+                for (int j = 0; j < commandPtr; j++) {
+                    command[j] = 0;
+                }
+                commandPtr = 0;
+            } else {
+                command[commandPtr++] = i;
+            }
+        }
+    }
+}
+
 int main() 
 {
     // cybot();
-    tm4();
+    cybot_wifi();
+    // tm4();
 }
