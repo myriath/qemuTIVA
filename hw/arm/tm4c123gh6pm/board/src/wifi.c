@@ -63,7 +63,7 @@ static void parse_frame(WIFIState *s)
 
     int frame_size = s->frame_size;
     uint32_t frame = s->receive_frame;
-    printf("WIFI Recvd: %08X\n", frame);
+    // printf("WIFI Recvd: %08X\n", frame);
 
     uint8_t start = (frame >> (frame_size - 1)) & 0x1;
     frame_size--;
@@ -132,7 +132,7 @@ static void wifi_new_write_frame(WIFIState *s) {
     if (data == -1) {
         return;
     }
-    printf("WiFi Send Data %d\n", data);
+    // printf("WiFi Send Data %d\n", data);
     uint8_t reverse_data = data & wlen_mask;
     uint16_t word = 0;
     for (int i = 0; i < wlen; i++) {
@@ -163,7 +163,7 @@ static void wifi_new_write_frame(WIFIState *s) {
     }
 
     s->write_frame = word;
-    printf("[WiFi WRITE] 0x%08X\n", word);
+    // printf("[WiFi WRITE] 0x%08X\n", word);
 }
 
 static void tick_write(void *opaque)
@@ -319,7 +319,6 @@ static void wifi_rx_gpio(void *opaque, int irq, int level)
         // start read
         wifi_reload(s->read_timer, &s->read_tick, get_baud_time_ns(s) / 2, true);
         s->reading = true;
-        printf("Wifi reading...\n");
     }
     // s->rx_state = level != 0;
     write_rx_state(s, level != 0);
