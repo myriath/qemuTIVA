@@ -17,6 +17,35 @@ static bool uart_fifo_enabled(UARTState *s)
     return (s->lcrh & UART_LCRH_FEN) != 0;
 }
 
+// static bool read_rx_state(UARTState *s)
+// {
+//     if (s->rx_count <= 0) {
+//         return false;
+//     }
+//     uint32_t mask = 1 << (s->rx_pos % 32);
+//     int array_pos = s->rx_pos / 32;
+//     bool bit = s->rx_state[array_pos] & mask;
+//     s->rx_pos = (s->rx_pos + 1) % (32 * UART_RX_FIFO_DEPTH);
+//     s->rx_count--;
+//     return bit;
+// }
+
+// static void write_rx_state(UARTState *s, bool bit)
+// {
+//     if (!s->reading || s->rx_count >= (32 *UART_RX_FIFO_DEPTH)) {
+//         return;
+//     }
+//     int pos = s->rx_pos + s->rx_count;
+//     uint64_t mask = 1 << (pos % 32);
+//     int array_pos = pos / 32;
+//     if (bit) {
+//         s->rx_state[array_pos] |= mask;
+//     } else {
+//         s->rx_state[array_pos] &= ~mask;
+//     }
+//     s->rx_count++;
+// }
+
 static inline unsigned uart_get_fifo_depth(UARTState *s)
 {
     // if fifo disabled, the fifos are 1 byte deep
@@ -175,7 +204,7 @@ static uint64_t get_baud_time_ns(UARTState *s)
     );
 }
 
-static void uart_reload(QEMUTimer *timer, int64_t *pTick, uint64_t timeout, bool reset)
+static void uart_reload(QEMUTimer *timer, uint64_t *pTick, uint64_t timeout, bool reset)
 {
     if (reset) {
         (*pTick) = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -203,7 +232,6 @@ static void uart_tick_write(void *opaque)
             s->write_pos = (s->write_pos + 1) & 0xf;
             s->fr &= ~UART_FLAG_TXFF;
             if (s->write_count <= s->write_trigger) {
-                qemu_irq_pulse(s->tx_gpio);
                 uart_update(s);
             }
             if (s->write_count <= 0) {
@@ -213,6 +241,7 @@ static void uart_tick_write(void *opaque)
         }
     }
     qemu_set_irq(s->tx_gpio, bit);
+
     uart_reload(s->write_timer, &s->write_tick, get_baud_time_ns(s), false);
 }
 
@@ -220,12 +249,14 @@ static void uart_tick_read(void *opaque)
 {
     UARTState *s = opaque;
 
-    if (!s->reading && s->rx_state != 0) {
+    // bool bit = read_rx_state(s);
+    bool bit = s->rx_state;
+    if (!s->reading && bit) {
         return;
     }
     s->reading = true;
     s->read_bit++;
-    s->receive_frame = (s->receive_frame << 1) | s->rx_state;
+    s->receive_frame = (s->receive_frame << 1) | bit;
 
     if (s->read_bit >= s->frame_size) {
         s->reading = false;
@@ -235,7 +266,6 @@ static void uart_tick_read(void *opaque)
     } else {
         uart_reload(s->read_timer, &s->read_tick, get_baud_time_ns(s), false);
     }
-
 }
 
 DeviceState *uart_create(bool debug, hwaddr addr, uint8_t uart, qemu_irq nvic_irq, qemu_irq tx_gpio, qemu_irq rts, qemu_irq cts, Clock *clk)
@@ -590,6 +620,7 @@ static const VMStateDescription vmstate_uart =
         VMSTATE_INT32(read_pos, UARTState),
         VMSTATE_INT32(read_count, UARTState),
         VMSTATE_INT32(read_trigger, UARTState),
+        // VMSTATE_UINT32_ARRAY(rx_state, UARTState, UART_RX_FIFO_DEPTH),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription * const []) {
@@ -617,8 +648,10 @@ static void uart_rx_gpio(void *opaque, int irq, int level)
     if (!s->reading && level == 0) {
         // start read
         uart_reload(s->read_timer, &s->read_tick, get_baud_time_ns(s) / 2, true);
+        s->reading = true;
     }
-    s->rx_state = (level != 0);
+    // write_rx_state(s, level != 0);
+    s->rx_state = level != 0;
 }
 
 static void uart_init(Object *obj)
@@ -685,7 +718,12 @@ static void uart_reset(DeviceState *dev)
     s->read_count = 0;
     s->read_bit = 0;
     s->receive_frame = 0;
-    s->rx_state = false;
+    // s->rx_pos = 0;
+    // s->rx_count = 0;
+    // for (int i = 0; i < UART_RX_FIFO_DEPTH; i++) {
+    //     s->rx_state[i] = 0;
+    // }
+    s->rx_state = true;
     s->reading = false;
     s->write_pos = 0;
     s->write_count = 0;

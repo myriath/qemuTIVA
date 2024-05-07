@@ -128,15 +128,15 @@ struct GPTMState {
 
     bool settings_changed;
 
-    int64_t count[2];
+    uint64_t count[2];
     // Used for Edge-time mode
-    int64_t capture[2];
+    uint64_t capture[2];
     // Timer stuff
-    int64_t ns_per_cycle;
-    int64_t start[2];
-    int64_t tick[2];
+    uint64_t ns_per_cycle;
+    uint64_t start[2];
+    uint64_t tick[2];
     // Stored timer value when timer is disabled;
-    int64_t time[2];
+    uint64_t time[2];
     struct GPTMState *opaque[2];
     QEMUTimer *timer[2];
     bool matched[2];

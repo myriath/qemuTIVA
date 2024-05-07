@@ -100,69 +100,6 @@ static void *thread_recv(void *opaque)
     }
 }
 
-static void *thread_start_server(void *opaque)
-{
-    struct server_creator *creator = (struct server_creator *) opaque;
-    struct server *server = creator->server;
-    
-    int fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (fd < 0) {
-        perror("Failed to create socket");
-        exit(EXIT_FAILURE);
-    }
-    int option = 1;
-    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
-
-    struct sockaddr_in client_addr;
-    socklen_t client_addr_len = sizeof(struct sockaddr_in);
-    struct sockaddr_in server_addr = {
-        .sin_family = AF_INET,
-        .sin_port = htons(server->port),
-        .sin_addr.s_addr = INADDR_ANY
-    };
-    memset(&(server_addr.sin_zero), 0, 8);
-    
-    printf("Binding...\n");
-    if (bind(fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
-        perror("Failed to bind port");
-        exit(EXIT_FAILURE);
-    }
-    printf("Listening...\n");
-    if (listen(fd, 1) < 0) {
-        perror("Failed to listen");
-        exit(EXIT_FAILURE);
-    }
-
-    server->sock = accept(fd, (struct sockaddr *) &client_addr, &client_addr_len);
-    printf("Accepted\n");
-    if (server->sock < 0) {
-        perror("Failed to accept connection");
-        exit(EXIT_FAILURE);           
-    }
-    server->connected = true;
-    creator->callback(creator->opaque);
-
-    pthread_t send_thread;
-    pthread_t recv_thread;
-
-    if (pthread_create(&send_thread, NULL, thread_send, (void*) server) < 0) {
-        perror("Failed to create send thread");
-        // exit(EXIT_FAILURE);
-    }
-    if (pthread_create(&recv_thread, NULL, thread_recv, (void*) server) < 0) {
-        perror("Failed to create recv thread");
-        // exit(EXIT_FAILURE);
-    }
-
-    pthread_join(send_thread, NULL);
-    pthread_join(recv_thread, NULL);
-
-    server->connected = false;
-
-    close(server->sock);
-    close(fd);
-    return SUCCESS;
-}
 
 static int initialize_fifo(struct fifo *fifo, ssize_t size)
 {
@@ -233,6 +170,83 @@ void free_all_servers(void)
     }
 }
 
+static void *thread_start_server(void *opaque)
+{
+    struct server_creator *creator = (struct server_creator *) opaque;
+    struct server *server = creator->server;
+    
+    int fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (fd < 0) {
+        perror("Failed to create socket");
+        exit(EXIT_FAILURE);
+    }
+    int option = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
+
+    struct sockaddr_in client_addr;
+    socklen_t client_addr_len = sizeof(struct sockaddr_in);
+    struct sockaddr_in server_addr = {
+        .sin_family = AF_INET,
+        .sin_port = htons(server->port),
+        .sin_addr.s_addr = INADDR_ANY
+    };
+    memset(&(server_addr.sin_zero), 0, 8);
+    
+    if (bind(fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
+        free_creator(creator);
+        perror("Failed to bind port");
+        exit(EXIT_FAILURE);
+    }
+    printf("Listening on Port %d\n", server->port);
+    if (listen(fd, 1) < 0) {
+        free_creator(creator);
+        perror("Failed to listen");
+        exit(EXIT_FAILURE);
+    }
+
+    server->sock = accept(fd, (struct sockaddr *) &client_addr, &client_addr_len);
+    printf("Accepted on Port %d\n", server->port);
+    if (server->sock < 0) {
+        close(fd);
+        free_creator(creator);
+        perror("Failed to accept connection");
+        exit(EXIT_FAILURE);           
+    }
+    server->connected = true;
+    if (creator->callback != NULL) {
+        creator->callback(creator->opaque);
+    }
+
+    pthread_t send_thread;
+    pthread_t recv_thread;
+
+    if (pthread_create(&send_thread, NULL, thread_send, (void*) server) < 0) {
+        close(server->sock);
+        close(fd);
+        free_creator(creator);
+        perror("Failed to create send thread");
+        exit(EXIT_FAILURE);
+    }
+    if (pthread_create(&recv_thread, NULL, thread_recv, (void*) server) < 0) {
+        close(server->sock);
+        close(fd);
+        free_creator(creator);
+        perror("Failed to create recv thread");
+        exit(EXIT_FAILURE);
+    }
+
+    pthread_join(send_thread, NULL);
+    pthread_join(recv_thread, NULL);
+
+    server->connected = false;
+
+    close(server->sock);
+    close(fd);
+
+    free_creator(creator);
+    return NULL;
+}
+
 pthread_t *create_server(int server_num, int port, void *opaque, void (*connect_callback)(void *opaque))
 {
     if (server_num < 0 || server_num >= COUNT_SERVERS) {
@@ -246,17 +260,20 @@ pthread_t *create_server(int server_num, int port, void *opaque, void (*connect_
         return NULL;
     }
     if (initialize_creator(creator, server, port, FIFO_SIZE, opaque, connect_callback) < 0) {
+        free_creator(creator);
         perror("Unable to allocate memory");
         return NULL;
     }
 
     pthread_t *thread = malloc(sizeof(pthread_t));
     if (thread == NULL) {
+        free_creator(creator);
         perror("Unable to allocate memory");
         return NULL;
     }
 
     if (pthread_create(thread, NULL, thread_start_server, (void *) creator) < 0) {
+        free_creator(creator);
         perror("Failed to create server thread");
         return NULL;
     }

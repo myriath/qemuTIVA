@@ -1315,9 +1315,14 @@ static void cybot_init(MachineState *ms, bool debug)
 
     Clock *sys_clk = qdev_get_clock_out(devices.ssys_dev, ssys_clocks[CLK_SYS]);
 
+    dev = create_field_device(sys_clk);
+    qemu_irq servo_in = qdev_get_gpio_in(dev, 0);
+
     dev = servo_create(debug, 0x50000000, sys_clk);
     // Connect servo to GPIO B pin 5 (from cybot baseboard ref) [timer 1 b]
     devices.gpio_out[GPIO_B][5][F_TIMER] = qdev_get_gpio_in(dev, 0);
+    // Connect servo duty monitor to field device
+    qdev_connect_gpio_out(dev, 0, servo_in);
 
     dev = wifi_create(0x50001000, devices.gpio_in[GPIO_B][0][F_UART], sys_clk);
     devices.gpio_out[GPIO_B][1][F_UART] = qdev_get_gpio_in(dev, 0);
