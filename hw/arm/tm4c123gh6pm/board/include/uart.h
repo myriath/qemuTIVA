@@ -57,6 +57,7 @@
 #define UART_CTL_UARTEN 0x0001
 
 #define UART_FIFO_DEPTH 16
+#define UART_RX_FIFO_DEPTH 2
 
 #define COUNT_UART      8
 
@@ -90,6 +91,9 @@ struct UARTState {
     int read_trigger;
     int read_bit;
     uint32_t receive_frame;
+    // int rx_pos;
+    // int rx_count;
+    // uint32_t rx_state[UART_RX_FIFO_DEPTH];
     bool rx_state;
     bool reading;
     uint32_t read_fifo[UART_FIFO_DEPTH];
@@ -107,8 +111,8 @@ struct UARTState {
     qemu_irq rx_gpio;
 
     // Stuff for timing uart send / receive
-    int64_t write_tick;
-    int64_t read_tick;
+    uint64_t write_tick;
+    uint64_t read_tick;
     QEMUTimer *write_timer;
     QEMUTimer *read_timer;
     Clock *clk;

@@ -14,6 +14,36 @@ DeviceState *wifi_create(hwaddr addr, qemu_irq tx_gpio, Clock *clk)
     return dev;
 }
 
+static int read_rx_state(WIFIState *s)
+{
+    if (s->rx_count <= 0) {
+        return -1;
+    }
+    uint32_t mask = 1 << (s->rx_pos % 32);
+    int array_pos = s->rx_pos / 32;
+    bool bit = s->rx_state[array_pos] & mask;
+    s->rx_pos = (s->rx_pos + 1) % (32 * WIFI_RX_FIFO_DEPTH);
+    s->rx_count--;
+    return bit;
+}
+
+static void write_rx_state(WIFIState *s, bool bit)
+{
+    if (!s->reading || s->rx_count >= (32 * WIFI_RX_FIFO_DEPTH)) {
+        return;
+    }
+    // print_rx_state(s, "WIFI");
+    int pos = s->rx_pos + s->rx_count;
+    uint64_t mask = 1 << (pos % 32);
+    int array_pos = pos / 32;
+    if (bit) {
+        s->rx_state[array_pos] |= mask;
+    } else {
+        s->rx_state[array_pos] &= ~mask;
+    }
+    s->rx_count++;
+}
+
 // "Variable precision SWAR algorithm" from SO
 // (https://stackoverflow.com/a/109025)
 // Should be replaced by compiler with a popcount instruction if available
@@ -33,6 +63,7 @@ static void parse_frame(WIFIState *s)
 
     int frame_size = s->frame_size;
     uint32_t frame = s->receive_frame;
+    // printf("WIFI Recvd: %08X\n", frame);
 
     uint8_t start = (frame >> (frame_size - 1)) & 0x1;
     frame_size--;
@@ -83,7 +114,7 @@ static uint64_t get_baud_time_ns(WIFIState *s)
     );
 }
 
-static void wifi_reload(QEMUTimer *timer, int64_t *pTick, uint64_t timeout, bool reset)
+static void wifi_reload(QEMUTimer *timer, uint64_t *pTick, uint64_t timeout, bool reset)
 {
     if (reset) {
         (*pTick) = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -95,13 +126,13 @@ static void wifi_reload(QEMUTimer *timer, int64_t *pTick, uint64_t timeout, bool
 }
 
 static void wifi_new_write_frame(WIFIState *s) {
-    // Check send and uart are enabled
     uint8_t wlen = 5 + ((s->lcrh >> 5) & 0x3);
     uint8_t wlen_mask = ((1 << wlen) - 1);
     char data = wifi_recv(SERVER_STUDENT);
     if (data == -1) {
         return;
     }
+    // printf("WiFi Send Data %d\n", data);
     uint8_t reverse_data = data & wlen_mask;
     uint16_t word = 0;
     for (int i = 0; i < wlen; i++) {
@@ -132,6 +163,7 @@ static void wifi_new_write_frame(WIFIState *s) {
     }
 
     s->write_frame = word;
+    // printf("[WiFi WRITE] 0x%08X\n", word);
 }
 
 static void tick_write(void *opaque)
@@ -160,14 +192,20 @@ static void tick_read(void *opaque)
 {
     WIFIState *s = opaque;
 
-    if (!s->reading && s->rx_state != 0) {
+    int bit = read_rx_state(s);
+    // bool bit = s->rx_state;
+    if (bit == -1) {
+        return;
+    }
+    if (!s->reading && bit) {
         return;
     }
     s->reading = true;
     s->read_bit++;
-    s->receive_frame = (s->receive_frame << 1) | s->rx_state;
+    s->receive_frame = (s->receive_frame << 1) | bit;
 
     if (s->read_bit >= s->frame_size) {
+        s->rx_count = 0;
         s->reading = false;
         s->read_bit = 0;
         parse_frame(s);
@@ -257,6 +295,7 @@ static const VMStateDescription vmstate_wifi =
         VMSTATE_UINT32(lcrh, WIFIState),
         VMSTATE_UINT32(receive_frame, WIFIState),
         VMSTATE_UINT32(write_frame, WIFIState),
+        VMSTATE_UINT32_ARRAY(rx_state, WIFIState, WIFI_RX_FIFO_DEPTH),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription * const []) {
@@ -268,8 +307,7 @@ static const VMStateDescription vmstate_wifi =
 static Property wifi_properties[] =
 {
     DEFINE_PROP_BOOL("migrate-clk", WIFIState, migrate_clk, true),
-    DEFINE_PROP_UINT32("student-port", WIFIState, student_port, 10000),
-    DEFINE_PROP_UINT32("instructor-port", WIFIState, instructor_port, 10001),
+    DEFINE_PROP_UINT32("port", WIFIState, port, 10000),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -280,8 +318,10 @@ static void wifi_rx_gpio(void *opaque, int irq, int level)
     if (!s->reading && level == 0) {
         // start read
         wifi_reload(s->read_timer, &s->read_tick, get_baud_time_ns(s) / 2, true);
+        s->reading = true;
     }
-    s->rx_state = (level != 0);
+    // s->rx_state = level != 0;
+    write_rx_state(s, level != 0);
 }
 
 static void wifi_init(Object *obj)
@@ -306,11 +346,6 @@ static void student_connect(void *opaque)
     wifi_reload(s->write_timer, &s->write_tick, 10000, true);
 }
 
-static void instructor_connect(void *opaque)
-{
-    // Nothing rn
-}
-
 static void wifi_realize(DeviceState *dev, Error **errp)
 {
     WIFIState *s = CYBOT_WIFI(dev);
@@ -323,24 +358,26 @@ static void wifi_realize(DeviceState *dev, Error **errp)
     s->read_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, tick_read, s);
     s->write_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, tick_write, s);
 
-    create_server(SERVER_STUDENT, s->student_port, s, student_connect);
-    create_server(SERVER_INSTRUCTOR, s->instructor_port, s, instructor_connect);
+    create_server(SERVER_STUDENT, s->port, s, student_connect);
 }
 
 static void wifi_reset(DeviceState *dev)
 {
     WIFIState *s = CYBOT_WIFI(dev);
-    // s->ibrd = 8;
-    // s->fbrd = 44;
-    s->ibrd = 1000;
+    s->ibrd = 500;
     s->fbrd = 0;
-    s->lcrh = 0x60;
+    s->lcrh = 0x70;
 
     s->frame_size = 10;
 
     s->read_bit = 0;
     s->receive_frame = 0;
-    s->rx_state = false;
+    s->rx_pos = 0;
+    s->rx_count = 0;
+    for (int i = 0; i < WIFI_RX_FIFO_DEPTH; i++) {
+        s->rx_state[i] = 0;
+    }
+    // s->rx_state = true;
     s->reading = false;
     s->write_bit = 0;
     s->write_frame = 0;

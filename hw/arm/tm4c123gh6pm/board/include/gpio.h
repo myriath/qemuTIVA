@@ -13,7 +13,7 @@
 #include "hw/qdev-clock.h"
 
 #define F_NONE          -1
-#define F_GENERAL       0
+#define F_GENERAL       16
 #define F_ANALOG        0
 #define F_UART          1
 #define F_UART_ALT      2
@@ -123,7 +123,7 @@
 
 #define N_GPIOS         6
 #define N_GPIO_BITS     8
-#define N_PCTL_OPTS     16
+#define N_PCTL_OPTS     17
 #define N_GPIO_TABLE    (N_GPIO_BITS * N_PCTL_OPTS)
 
 #define GPIO_ALT_F_PINS "gpio-alt-functions"

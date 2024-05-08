@@ -721,7 +721,7 @@ static const VMStateDescription vmstate_gptm = {
         VMSTATE_UINT32_ARRAY(prescale, GPTMState, 2),
         VMSTATE_UINT32_ARRAY(prescale_match, GPTMState, 2),
         VMSTATE_UINT32(rtcpd, GPTMState),
-        VMSTATE_INT64_ARRAY(tick, GPTMState, 2),
+        VMSTATE_UINT64_ARRAY(tick, GPTMState, 2),
         VMSTATE_TIMER_PTR_ARRAY(timer, GPTMState, 2),
         VMSTATE_CLOCK(clk, GPTMState),
         VMSTATE_END_OF_LIST()

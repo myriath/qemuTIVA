@@ -51,9 +51,9 @@ static const TypeInfo join_irq_type_info = {
    .class_init = join_irq_class_init,
 };
 
-static void join_irq_register_types(void)
+static void field_register_types(void)
 {
     type_register_static(&join_irq_type_info);
 }
 
-type_init(join_irq_register_types)
+type_init(field_register_types)

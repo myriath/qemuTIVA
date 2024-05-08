@@ -235,7 +235,7 @@ void UART1_Handler(void)
 }
 
 void uart_send(char data) {
-    while (UART1_FR_R & 0x20);
+    while (UART1_FR_R & UART_FR_TXFF || UART1_FR_R & UART_FR_BUSY);
     UART1_DR_R = data;
 }
 
@@ -244,6 +244,17 @@ void uart_print(char *data) {
     while (*ptr != 0) {
         uart_send(*(ptr++));
     }
+}
+
+int strcmp(char *p0, char *p1) 
+{
+    char last = -1;
+    while (*p0 == *p1) {
+        last = *p0;
+        p0++;
+        p1++;
+    }
+    return last != 0;
 }
 
 #define MAX_COMMAND_LEN 100
@@ -258,16 +269,14 @@ int cybot_wifi()
     GPIO_PORTB_AFSEL_R |= 0x3;
     GPIO_PORTB_DEN_R |= 0x3;
     GPIO_PORTB_PCTL_R = 0x11;
-    // uint16_t iBRD = 16000000 / (16 * 115200);
-    uint16_t iBRD = 1000;
-    // uint16_t fBRD = (int)(0.6808 * 64 + 0.5);
+    uint16_t iBRD = 500;
     uint16_t fBRD = 0;
 
     UART1_CTL_R &= ~0xcbbf;
     UART1_IBRD_R = iBRD;
     UART1_FBRD_R = fBRD;
 
-    UART1_LCRH_R = 0x60;
+    UART1_LCRH_R = 0x70;
     UART1_CC_R = 0x0;
 
     UART1_ICR_R |= 0x10;
@@ -289,10 +298,18 @@ int cybot_wifi()
         char i = command_byte;
         if (i != 0) {
             command_byte = 0;
-            if (i == '\n' || commandPtr >= MAX_COMMAND_LEN - 1) {
-                uart_print("Received: '");
+            uart_send(i);
+            if (i == 0x7f) {
+                if (commandPtr > 0) {
+                    command[--commandPtr] = 0;
+                }
+            } else if (i == 13 || commandPtr >= MAX_COMMAND_LEN - 1) {
+                uart_print("\nReceived: '");
                 uart_print(command);
-                uart_print("'\n");
+                uart_print("'\n\r");
+                if (strcmp(command, "exit") == 0) {
+                    return;
+                }
                 for (int j = 0; j < commandPtr; j++) {
                     command[j] = 0;
                 }

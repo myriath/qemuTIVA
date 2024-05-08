@@ -26,7 +26,6 @@ static void reload(ServoState *s, bool reset)
     s->start_ns = tick;
     s->pulse_end_ns = tick;
     tick += s->pulse_width;
-    // printf("Servo waiting %ld ns\n", s->pulse_width);
     s->tick = tick;
 
     timer_mod(s->timer, tick);
@@ -36,14 +35,11 @@ static void tick(void *opaque)
 {
     ServoState *s = opaque;
 
-    int duty = (int)(
-        ((double)(s->pulse_end_ns - s->start_ns) / (double)(s->tick - s->start_ns)) 
-        * 100
-    );
-    qemu_set_irq(s->duty_signal, duty);
+    double duty = ((double)(s->pulse_end_ns - s->start_ns) / (double)(s->tick - s->start_ns));
+    qemu_set_irq(s->duty_signal, (int)(180 * duty));
 
     if (s->debug) {
-        printf("[SERVO DUTY] %d%%\n", duty);
+        printf("[SERVO DUTY] %d%%\n", (int)(100 * duty));
     }
     
     reload(s, false);
