@@ -50,15 +50,15 @@ static void parse_packet(FieldState *s)
             printf("Responding!\n");
             response.ID = ID_SERVO_RESPONSE;
             struct ServoResponse response_data = {
-                .direction = s->last_servo
+                .direction = (uint8_t) s->last_servo
             };
             response.data = (uint8_t *) &response_data;
             packet_size = BYTES_SERVO_RESPONSE;
-            break;
+            respond(&response, packet_size);
+            return;
         default:
             return;
     }
-    respond(&response, packet_size);
 }
 
 static void new_packet(FieldState *s, char id)

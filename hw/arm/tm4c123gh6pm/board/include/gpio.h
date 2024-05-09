@@ -128,7 +128,7 @@
 
 #define GPIO_ALT_F_PINS "gpio-alt-functions"
 
-extern const int8_t GPIO_ALTERNATE_FUNCTIONS[N_GPIOS][N_GPIO_BITS][N_PCTL_OPTS];
+extern const int8_t GPIO_ALTERNATE_FUNCTIONS[N_GPIOS][N_GPIO_BITS][N_PCTL_OPTS - 1];
 extern const char *GPIO_NAMED_PINS[N_GPIO_BITS];
 
 struct GPIOState {

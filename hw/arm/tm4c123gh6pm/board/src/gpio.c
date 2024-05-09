@@ -25,7 +25,7 @@ const char *GPIO_NAMED_PINS[N_GPIO_BITS] = {
     "p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7"
 };
 
-const int8_t GPIO_ALTERNATE_FUNCTIONS[6][N_GPIO_BITS][16] =
+const int8_t GPIO_ALTERNATE_FUNCTIONS[N_GPIOS][N_GPIO_BITS][N_PCTL_OPTS - 1] =
 {
     // GPIO A
     {
