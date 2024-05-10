@@ -87,7 +87,7 @@ static void uart_put_fifo(UARTState *s, uint32_t value, int direction)
     }
 
     int depth = uart_get_fifo_depth(s);
-    int slot = (pos + *count) & (UART_FIFO_DEPTH - 1);
+    int slot = (pos + *count) & (depth - 1);
     fifo[slot] = value;
     (*count)++;
     s->fr &= ~flag_empty;
@@ -124,7 +124,7 @@ static void uart_put_fifo_write(UARTState *s, uint32_t value)
 
     uart_put_fifo(s, value, UART_FIFO_WRITE);
 
-    if (s->write_count > s->write_trigger) {
+    if (s->write_count >= s->write_trigger) {
         s->ris &= ~UART_INT_TX;
         uart_update(s);
     }

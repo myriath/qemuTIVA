@@ -242,8 +242,8 @@ static void gpio_input_handler(void *opaque, int irq, int level)
 {
     GPIOState *s = opaque;
 
-    uint8_t pin = irq / 16;
-    uint8_t fun = irq % 16;
+    uint8_t pin = irq / N_PCTL_OPTS;
+    uint8_t fun = irq % N_PCTL_OPTS;
 
     uint8_t mask = 1 << pin;
 
